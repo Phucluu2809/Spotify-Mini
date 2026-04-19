@@ -1,98 +1,246 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useMemo } from 'react';
+import {
+  Dimensions,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const panelWidth = useMemo(() => {
+    const screenWidth = Dimensions.get('window').width;
+    return Math.min(390, Math.max(320, screenWidth));
+  }, []);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.background}>
+        <View style={styles.glowTop} />
+        <View style={styles.glowBottom} />
+
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { width: panelWidth }]}
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.headerSection}>
+            <View style={styles.logoCircle}>
+              <View style={styles.logoBar} />
+              <View style={styles.logoBar} />
+              <View style={styles.logoBar} />
+            </View>
+            <Text style={styles.brandTitle}>SONIC GALLERY</Text>
+            <Text style={styles.brandSubtitle}>THE EDITORIAL SOUNDSCAPE</Text>
+          </View>
+
+          <Pressable style={styles.spotifyButton}>
+            <Text style={styles.spotifyButtonText}>Continue with Spotify</Text>
+          </Pressable>
+
+          <View style={styles.separatorWrap}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>OR</Text>
+            <View style={styles.separatorLine} />
+          </View>
+
+          <View style={styles.formWrap}>
+            <Text style={styles.label}>EMAIL ADDRESS</Text>
+            <TextInput
+              defaultValue="alex@sonicgallery.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              placeholderTextColor="#3D4A3D"
+            />
+
+            <View style={styles.passwordLabelRow}>
+              <Text style={styles.label}>PASSWORD</Text>
+              <Text style={styles.forgotText}>FORGOT?</Text>
+            </View>
+            <TextInput
+              defaultValue="••••••••"
+              secureTextEntry
+              style={styles.input}
+              placeholderTextColor="#3D4A3D"
+            />
+
+            <Pressable style={styles.loginButton}>
+              <Text style={styles.loginButtonText}>Login to Collection</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.joinText}>
+            New to the gallery? <Text style={styles.joinLink}>Join now</Text>
+          </Text>
+
+          <Text style={styles.footerText}>BUILT FOR CONNOISSEURS OF THE SONIC ARTS</Text>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0B0F0C',
+  },
+  background: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#0B0F0C',
+    position: 'relative',
+  },
+  glowTop: {
+    width: 210,
+    height: 460,
+    backgroundColor: 'rgba(83, 224, 118, 0.08)',
+    borderRadius: 999,
+    position: 'absolute',
+    top: 70,
+    left: -18,
+  },
+  glowBottom: {
+    width: 190,
+    height: 390,
+    backgroundColor: 'rgba(83, 224, 118, 0.12)',
+    borderRadius: 999,
+    position: 'absolute',
+    right: -74,
+    bottom: -40,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 48,
+    alignSelf: 'center',
+  },
+  headerSection: {
+    alignItems: 'center',
+    marginBottom: 34,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#1DB954',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    shadowColor: '#1DB954',
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+    marginBottom: 16,
+  },
+  logoBar: {
+    width: 26,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: '#004118',
+  },
+  brandTitle: {
+    color: '#53E076',
+    fontSize: 30,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 0.6,
+  },
+  brandSubtitle: {
+    marginTop: 6,
+    color: 'rgba(188, 203, 185, 0.7)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  spotifyButton: {
+    height: 56,
+    borderRadius: 24,
+    backgroundColor: '#3ED56B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 30,
+  },
+  spotifyButtonText: {
+    color: '#002108',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  separatorWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    marginBottom: 26,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#353534',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  separatorText: {
+    color: '#BCCBB9',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  formWrap: {
+    gap: 10,
+  },
+  label: {
+    color: '#BCCBB9',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  input: {
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1C1B1B',
+    paddingHorizontal: 16,
+    color: '#BCCBB9',
+    fontSize: 16,
+    marginBottom: 14,
+  },
+  passwordLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  forgotText: {
+    color: '#53E076',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  loginButton: {
+    marginTop: 6,
+    height: 56,
+    borderRadius: 24,
+    backgroundColor: '#353534',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginButtonText: {
+    color: '#E5E2E1',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  joinText: {
+    marginTop: 32,
+    textAlign: 'center',
+    color: '#BCCBB9',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  joinLink: {
+    color: '#53E076',
+    fontWeight: '700',
+  },
+  footerText: {
+    marginTop: 44,
+    textAlign: 'center',
+    color: 'rgba(229, 226, 225, 0.4)',
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 });
