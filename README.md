@@ -6,3 +6,4 @@
 - các phần còn lại khá "ĐƠN GIẢN" vì tên từng thư mục đã nói quá rõ chức năng nó rồi,(chát di bi ti của) ae đọc qua code rồi prompt giao diện giúp t nha
 - còn 2 vấn đề chính cần xử lý là stream nhạc khi out khỏi app(tất nhiên khi xóa app khỏi thư mục trên đth thì nhạc nó tắt cmn=))) với cái thứ 2 là t cần ae prompt lại giao diện theo từng role để có commit=))
 - còn đâu phần backend hay cái khác có vấn đề thì ae để lại ở đây cho bạn sau đọc review
+- cách chạy cho ae đỡ phải prompt: ae bật 2 cmd sau đó chạy riêng 2 cái, cái backend chạy node src/app.js cái fe chạy 
