@@ -1,17 +1,16 @@
 import {
-  View,
-  Text,
   FlatList,
   Image,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  StyleSheet
+  View
 } from 'react-native';
 
 import { useEffect, useState } from 'react';
 
-import axios from 'axios';
-
 import { usePlayer } from '../../context/PlayerContext';
+import { API } from '../../services/api';
 
 export default function HomeScreen() {
   const [songs, setSongs] = useState<any[]>([]);
@@ -25,9 +24,7 @@ export default function HomeScreen() {
 
   const fetchSongs = async () => {
     try {
-      const res = await axios.get(
-        'http://192.168.1.20:5000/songs'
-      );
+      const res = await API.get('/songs');
 
       setSongs(res.data);
     } catch (err) {
