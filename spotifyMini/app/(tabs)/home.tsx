@@ -9,7 +9,7 @@ import {
 
 import { useEffect, useState } from 'react';
 
-import axios from 'axios';
+import { API } from '../../services/api';
 
 import { usePlayer } from '../../context/PlayerContext';
 
@@ -25,9 +25,7 @@ export default function HomeScreen() {
 
   const fetchSongs = async () => {
     try {
-      const res = await axios.get(
-        'http://192.168.1.153:5000/songs'
-      );
+      const res = await API.get('/songs');
 
       setSongs(res.data);
     } catch (err) {
