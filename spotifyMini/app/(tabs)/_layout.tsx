@@ -75,6 +75,27 @@ export default function TabLayout() {
             )
           }}
         />
+
+        <Tabs.Screen
+          name="history"
+          options={{
+            href: null
+          }}
+        />
+
+        <Tabs.Screen
+          name="listening-history"
+          options={{
+            href: null
+          }}
+        />
+
+        <Tabs.Screen
+          name="recently-played"
+          options={{
+            href: null
+          }}
+        />
       </Tabs>
 
       <MiniPlayer />
