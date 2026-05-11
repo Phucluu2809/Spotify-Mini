@@ -1,42 +1,17 @@
 import {
-  ImageBackground,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View
 } from 'react-native';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { usePlayer } from '../../context/PlayerContext';
 import { API } from '../../services/api';
 import { ArtistCard } from '../../components/ArtistCard';
+import MiniPlayer from '../../components/MiniPlayer';
 import { PlaylistCard } from '../../components/PlaylistCard';
 import { SectionTitle } from '../../components/SectionTitle';
-import { SongCard } from '../../components/SongCard';
-
-const recentlyPlayed = [
-  {
-    id: 'midnight-city',
-    title: 'Midnight City',
-    subtitle: 'M83 • Album',
-    image: 'https://picsum.photos/seed/midnightcity/400/400'
-  },
-  {
-    id: 'kind-of-blue',
-    title: 'Kind of Blue',
-    subtitle: 'Miles Davis • Album',
-    image: 'https://picsum.photos/seed/kindofblue/400/400'
-  },
-  {
-    id: 'techno-beats',
-    title: 'Techno Beats',
-    subtitle: 'Deep Bass • Playlist',
-    image: 'https://picsum.photos/seed/technobeats/400/400'
-  }
-];
 
 const madeForYou = [
   {
@@ -57,38 +32,22 @@ const madeForYou = [
   }
 ];
 
-const trendingNow = [
-  {
-    id: 'starboy',
-    rank: '01',
-    title: 'Starboy',
-    artist: 'The Weeknd',
-    duration: '3:50',
-    image: 'https://picsum.photos/seed/starboy/300/300'
-  },
-  {
-    id: 'levitating',
-    rank: '02',
-    title: 'Levitating',
-    artist: 'Dua Lipa',
-    duration: '3:23',
-    image: 'https://picsum.photos/seed/levitating/300/300'
-  },
-  {
-    id: 'blinding-lights',
-    rank: '03',
-    title: 'Blinding Lights',
-    artist: 'The Weeknd',
-    duration: '3:20',
-    image: 'https://picsum.photos/seed/blindinglights/300/300'
+const formatDuration = (duration?: number) => {
+  if (!duration || Number.isNaN(duration)) {
+    return '0:00';
   }
-];
+
+  const totalSeconds = Math.floor(duration / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60)
+    .toString()
+    .padStart(2, '0');
+
+  return `${minutes}:${seconds}`;
+};
 
 export default function HomeScreen() {
   const [songs, setSongs] = useState<any[]>([]);
-
-  const { playSong, currentSong } =
-    usePlayer();
 
   useEffect(() => {
     fetchSongs();
@@ -104,108 +63,79 @@ export default function HomeScreen() {
     }
   };
 
+  const trendingNow = useMemo(() => {
+    return [...songs]
+      .sort((a, b) => {
+        const left = new Date(b.createdAt ?? 0).getTime();
+        const right = new Date(a.createdAt ?? 0).getTime();
+
+        return left - right;
+      })
+      .slice(0, 3)
+      .map((song, index) => ({
+        id: song._id,
+        rank: String(index + 1).padStart(2, '0'),
+        title: song.title,
+        subtitle: song.artist,
+        image: song.image || `https://picsum.photos/seed/${encodeURIComponent(song._id || song.title)}/300/300`,
+      }));
+  }, [songs]);
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <Text style={styles.heading}>Spotify Mini</Text>
-        <Text style={styles.subheading}>
-          Discover recently played picks, personal mixes, and what is trending now.
-        </Text>
-      </View>
+    <View style={styles.screen}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.heading}>Spotify Mini</Text>
+          <Text style={styles.subheading}>
+              Discover trending picks, personal mixes, and what is trending now.
+          </Text>
+        </View>
 
-      <View style={styles.section}>
-        <SectionTitle title="Recently played" actionLabel="SHOW ALL" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRail}>
-          {recentlyPlayed.map((item) => (
-            <View key={item.id} style={styles.recentCardWrap}>
-              <ArtistCard
-                title={item.title}
-                subtitle={item.subtitle}
-                image={item.image}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+        <View style={styles.section}>
+            <SectionTitle title="Trending now" actionLabel="REFRESH" onPressAction={fetchSongs} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRail}>
+              {trendingNow.map((item) => (
+              <View key={item.id} style={styles.recentCardWrap}>
+                  <ArtistCard
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    image={item.image}
+                  />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
 
-      <View style={styles.section}>
-        <SectionTitle title="Made for You" />
-        {madeForYou.map((item) => (
-          <PlaylistCard
-            key={item.id}
-            label={item.label}
-            title={item.title}
-            subtitle={item.subtitle}
-            image={item.image}
-            accentColor={item.accentColor}
-          />
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <SectionTitle title="Trending now" />
-        <View style={styles.trendingCard}>
-          {trendingNow.map((item) => (
-            <SongCard
+        <View style={styles.section}>
+          <SectionTitle title="Made for You" />
+          {madeForYou.map((item) => (
+            <PlaylistCard
               key={item.id}
-              rank={item.rank}
+              label={item.label}
               title={item.title}
-              artist={item.artist}
-              duration={item.duration}
+              subtitle={item.subtitle}
               image={item.image}
+              accentColor={item.accentColor}
             />
           ))}
         </View>
-      </View>
+      </ScrollView>
 
-      {songs.length > 0 && (
-        <View style={styles.section}>
-          <SectionTitle title="Your library" actionLabel="REFRESH" onPressAction={fetchSongs} />
-
-          <View style={styles.libraryList}>
-            {songs.map((item, index) => (
-              <TouchableOpacity
-                key={item._id}
-                style={styles.libraryRow}
-                onPress={() => playSong(item)}
-                activeOpacity={0.85}
-              >
-                <Image
-                  source={{ uri: item.image }}
-                  style={styles.libraryImage}
-                />
-
-                <View style={styles.libraryText}>
-                  <Text style={styles.libraryTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-
-                  <Text style={styles.libraryArtist} numberOfLines={1}>
-                    {item.artist}
-                  </Text>
-
-                  {currentSong?._id === item._id && (
-                    <Text style={styles.playing}>
-                      Playing...
-                    </Text>
-                  )}
-                </View>
-
-                <Text style={styles.libraryIndex}>{String(index + 1).padStart(2, '0')}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-    </ScrollView>
+      <MiniPlayer />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#121212'
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#121212'

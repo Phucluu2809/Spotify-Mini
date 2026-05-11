@@ -10,8 +10,6 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-
-import MiniPlayer from "../../components/MiniPlayer";
 import { API } from "../../services/api";
 
 type LibrarySection = "home" | "Albums" | "Playlists" | "Artists";
@@ -25,46 +23,53 @@ type LibraryItem = {
   featured?: boolean;
 };
 
+type RecentTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  image?: string;
+};
+
+const getDemoImage = (seed: string) => `https://picsum.photos/seed/${encodeURIComponent(seed)}/400/400`;
+
 const tabs: Array<Exclude<LibrarySection, "home">> = ["Albums", "Playlists", "Artists"];
 
 const fallbackItems: LibraryItem[] = [
-  { id: "liked-songs", title: "Liked Songs", subtitle: "Playlist • 412 songs", accent: "#4338CA" },
-  { id: "after-hours-mood", title: "After Hours Mood", subtitle: "Playlist • Made for you", accent: "#2D6A4F" },
-  { id: "midnight-cinema", title: "Midnight Cinema", subtitle: "Artist", accent: "#7C3AED" },
-  { id: "parachutes", title: "Parachutes", subtitle: "Album • Coldplay", accent: "#0F766E" },
-  { id: "focus-flow", title: "Focus Flow", subtitle: "Playlist • 120 tracks", accent: "#2563EB" },
-  { id: "deep-house-chill", title: "Deep House Chill", subtitle: "Playlist • Recently Added", accent: "#1E3A8A" },
+  { id: "liked-songs", title: "Liked Songs", subtitle: "Playlist • 412 songs", accent: "#4338CA", image: getDemoImage("liked-songs") },
+  { id: "after-hours-mood", title: "After Hours Mood", subtitle: "Playlist • Made for you", accent: "#2D6A4F", image: getDemoImage("after-hours-mood") },
+  { id: "midnight-cinema", title: "Midnight Cinema", subtitle: "Artist", accent: "#7C3AED", image: getDemoImage("midnight-cinema") },
+  { id: "parachutes", title: "Parachutes", subtitle: "Album • Coldplay", accent: "#0F766E", image: getDemoImage("parachutes") },
+  { id: "focus-flow", title: "Focus Flow", subtitle: "Playlist • 120 tracks", accent: "#2563EB", image: getDemoImage("focus-flow") },
+  { id: "deep-house-chill", title: "Deep House Chill", subtitle: "Playlist • Recently Added", accent: "#1E3A8A", image: getDemoImage("deep-house-chill") },
 ];
 
 const albumItems: LibraryItem[] = [
-  { id: "midnight-neon", title: "Midnight Neon", subtitle: "The Synthetic Echoes", accent: "#450AF5" },
-  { id: "dark-horizon", title: "Dark Horizon", subtitle: "Luna Ray", accent: "#1E3A8A" },
-  { id: "velocity", title: "Velocity", subtitle: "Chrome Pulse", accent: "#0F766E" },
-  { id: "static-bloom", title: "Static Bloom", subtitle: "The Quiet Ones", accent: "#7C3AED" },
-  { id: "vapor-trails", title: "Vapor Trails", subtitle: "Signal Path", accent: "#2D6A4F" },
-  { id: "groove-theory", title: "Groove Theory", subtitle: "Vinyl Souls", accent: "#2563EB" },
+  { id: "midnight-neon", title: "Midnight Neon", subtitle: "The Synthetic Echoes", accent: "#450AF5", image: getDemoImage("midnight-neon") },
+  { id: "dark-horizon", title: "Dark Horizon", subtitle: "Luna Ray", accent: "#1E3A8A", image: getDemoImage("dark-horizon") },
+  { id: "velocity", title: "Velocity", subtitle: "Chrome Pulse", accent: "#0F766E", image: getDemoImage("velocity") },
+  { id: "static-bloom", title: "Static Bloom", subtitle: "The Quiet Ones", accent: "#7C3AED", image: getDemoImage("static-bloom") },
+  { id: "vapor-trails", title: "Vapor Trails", subtitle: "Signal Path", accent: "#2D6A4F", image: getDemoImage("vapor-trails") },
+  { id: "groove-theory", title: "Groove Theory", subtitle: "Vinyl Souls", accent: "#2563EB", image: getDemoImage("groove-theory") },
 ];
 
 const playlistItems: LibraryItem[] = [
-  { id: "liked-songs", title: "Liked Songs", subtitle: "1,248 songs", accent: "#450AF5", featured: true },
-  { id: "midnight-echoes", title: "Midnight Echoes", subtitle: "Playlist • 48 songs", accent: "#4338CA" },
-  { id: "velvet-vinyl", title: "Velvet Vinyl", subtitle: "Playlist • Collector Edition", accent: "#0F766E" },
-  { id: "after-hours-live", title: "After Hours Live", subtitle: "Playlist • Curated", accent: "#7C3AED" },
-  { id: "neo-soul-focus", title: "Neo Soul Focus", subtitle: "Playlist • Study Vibes", accent: "#1E3A8A" },
-  { id: "techno-core", title: "Techno Core", subtitle: "Playlist • Energy", accent: "#2D6A4F" },
-  { id: "ambient-nights", title: "Ambient Nights", subtitle: "Playlist • Relax", accent: "#2563EB" },
+  { id: "liked-songs", title: "Liked Songs", subtitle: "1,248 songs", accent: "#450AF5", featured: true, image: getDemoImage("liked-songs-playlist") },
+  { id: "midnight-echoes", title: "Midnight Echoes", subtitle: "Playlist • 48 songs", accent: "#4338CA", image: getDemoImage("midnight-echoes") },
+  { id: "velvet-vinyl", title: "Velvet Vinyl", subtitle: "Playlist • Collector Edition", accent: "#0F766E", image: getDemoImage("velvet-vinyl") },
+  { id: "after-hours-live", title: "After Hours Live", subtitle: "Playlist • Curated", accent: "#7C3AED", image: getDemoImage("after-hours-live") },
+  { id: "neo-soul-focus", title: "Neo Soul Focus", subtitle: "Playlist • Study Vibes", accent: "#1E3A8A", image: getDemoImage("neo-soul-focus") },
+  { id: "techno-core", title: "Techno Core", subtitle: "Playlist • Energy", accent: "#2D6A4F", image: getDemoImage("techno-core") },
+  { id: "ambient-nights", title: "Ambient Nights", subtitle: "Playlist • Relax", accent: "#2563EB", image: getDemoImage("ambient-nights") },
 ];
 
 const artistItems: LibraryItem[] = [
-  { id: "the-midnight-echo", title: "The Midnight Echo", subtitle: "Artist • 2.4M Monthly Listeners", accent: "#4338CA", featured: true },
-  { id: "neon-velvet", title: "Neon Velvet", subtitle: "Artist", accent: "#0F766E" },
-  { id: "pulse-theory", title: "Pulse Theory", subtitle: "Artist", accent: "#7C3AED" },
-  { id: "digital-ghost", title: "Digital Ghost", subtitle: "Artist", accent: "#1E3A8A" },
-  { id: "luna-trace", title: "Luna Trace", subtitle: "Artist", accent: "#2D6A4F" },
-  { id: "static-dreams", title: "Static Dreams", subtitle: "Artist", accent: "#2563EB" },
+  { id: "the-midnight-echo", title: "The Midnight Echo", subtitle: "Artist • 2.4M Monthly Listeners", accent: "#4338CA", featured: true, image: getDemoImage("the-midnight-echo") },
+  { id: "neon-velvet", title: "Neon Velvet", subtitle: "Artist", accent: "#0F766E", image: getDemoImage("neon-velvet") },
+  { id: "pulse-theory", title: "Pulse Theory", subtitle: "Artist", accent: "#7C3AED", image: getDemoImage("pulse-theory") },
+  { id: "digital-ghost", title: "Digital Ghost", subtitle: "Artist", accent: "#1E3A8A", image: getDemoImage("digital-ghost") },
+  { id: "luna-trace", title: "Luna Trace", subtitle: "Artist", accent: "#2D6A4F", image: getDemoImage("luna-trace") },
+  { id: "static-dreams", title: "Static Dreams", subtitle: "Artist", accent: "#2563EB", image: getDemoImage("static-dreams") },
 ];
-
-const recentTracks = [{ id: "feel-the-love", title: "Feel The Love", artist: "VIDA Hollywood" }];
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -134,9 +139,9 @@ function SquareCard({ item }: { item: LibraryItem }) {
   );
 }
 
-function ListRow({ item }: { item: LibraryItem }) {
+function ListRow({ item, onPress }: { item: LibraryItem; onPress?: () => void }) {
   return (
-    <View style={styles.listRow}>
+    <Pressable style={styles.listRow} onPress={onPress}>
       <View style={[styles.listArt, !item.image && { backgroundColor: item.accent ?? "#2D6A4F" }]}>
         {item.image ? (
           <Image source={{ uri: item.image }} style={styles.listImage} />
@@ -155,7 +160,7 @@ function ListRow({ item }: { item: LibraryItem }) {
         <Text style={styles.listTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.listSubtitle} numberOfLines={1}>{item.subtitle}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -164,7 +169,7 @@ function ArtistRow({ item }: { item: LibraryItem }) {
     <View style={styles.artistRow}>
       <View style={styles.artistAvatarWrap}>
         <View style={[styles.artistAvatar, { backgroundColor: item.accent ?? "#2D6A4F" }]}>
-          <View style={styles.artistAvatarInner} />
+          {item.image ? <Image source={{ uri: item.image }} style={styles.artistAvatarImage} /> : <View style={styles.artistAvatarInner} />}
         </View>
         <View style={[styles.artistPlayBadge, item.featured && styles.artistPlayBadgeFeatured]}>
           <View style={styles.artistPlayInner} />
@@ -256,16 +261,24 @@ export default function Library() {
   }, []);
 
   const homeItems = useMemo<LibraryItem[]>(() => {
+    const likedSongsItem = {
+      id: "liked-songs",
+      title: "Liked Songs",
+      subtitle: `Playlist • ${songs.length} songs`,
+      accent: "#4338CA",
+      image: getDemoImage("liked-songs"),
+    };
+
     if (!songs.length) {
       return fallbackItems;
     }
 
-    return songs.map((song) => ({
+    return [likedSongsItem, ...songs.map((song) => ({
       id: song._id,
       title: song.title,
       subtitle: `${song.artist} • Song`,
       image: song.image,
-    }));
+    }))];
   }, [songs]);
 
   return (
@@ -339,30 +352,11 @@ export default function Library() {
           <>
             <SectionHeader label="Recents" />
             {homeItems.map((item) => (
-              <ListRow key={item.id} item={item} />
+              <ListRow key={item.id} item={item} onPress={item.id === "liked-songs" ? () => navigation.navigate("my-playlist" as never) : undefined} />
             ))}
-
-            <View style={styles.trackCardSection}>
-              {recentTracks.map((track) => (
-                <View key={track.id} style={styles.trackRow}>
-                  <View style={styles.trackArt}>
-                    <View style={styles.trackDisc} />
-                  </View>
-                  <View style={styles.trackText}>
-                    <Text style={styles.trackTitle} numberOfLines={1}>{track.title}</Text>
-                    <Text style={styles.trackArtist} numberOfLines={1}>{track.artist}</Text>
-                  </View>
-                  <View style={styles.trackPlay}>
-                    <Text style={styles.trackPlayText}>▶</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
           </>
         )}
       </ScrollView>
-
-      <MiniPlayer />
     </View>
   );
 }
@@ -419,6 +413,7 @@ const styles = StyleSheet.create({
   trackCardSection: { backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 8 },
   trackRow: { flexDirection: "row", alignItems: "center", height: 80, paddingHorizontal: 16, gap: 16, borderRadius: 12 },
   trackArt: { width: 64, height: 64, borderRadius: 8, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: "#4338CA" },
+  trackImage: { width: "100%", height: "100%" },
   trackDisc: { width: 25, height: 22, borderRadius: 999, backgroundColor: "#FFFFFF", opacity: 0.95 },
   trackText: { flex: 1 },
   trackTitle: { color: "#E5E2E1", fontSize: 16, fontWeight: "500", marginBottom: 4 },
@@ -429,6 +424,7 @@ const styles = StyleSheet.create({
   artistRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#1C1B1B", borderRadius: 12, padding: 16, minHeight: 114 },
   artistAvatarWrap: { width: 80, height: 80, marginRight: 16, flexShrink: 0 },
   artistAvatar: { width: 80, height: 80, borderRadius: 999, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  artistAvatarImage: { width: "100%", height: "100%" },
   artistAvatarInner: { width: 80, height: 80, backgroundColor: "rgba(0,0,0,0.2)", borderRadius: 999 },
   artistPlayBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#53E076", position: "absolute", top: 29, left: 58, alignItems: "center", justifyContent: "center" },
   artistPlayBadgeFeatured: { backgroundColor: "#53E076" },
