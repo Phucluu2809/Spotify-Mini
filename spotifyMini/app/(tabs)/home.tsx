@@ -11,10 +11,10 @@ import { useEffect, useState } from 'react';
 
 import { API } from '../../services/api';
 
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayer, type Song } from '../../context/PlayerContext';
 
 export default function HomeScreen() {
-  const [songs, setSongs] = useState<any[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
 
   const { playSong, currentSong } =
     usePlayer();
@@ -45,7 +45,7 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => playSong(item)}
+            onPress={() => playSong(item, songs)}
           >
             <Image
               source={{ uri: item.image }}

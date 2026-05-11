@@ -10,13 +10,21 @@ import {
   View
 } from "react-native";
 
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayer,
+  type Song
+} from "../../context/PlayerContext";
 import { API } from "../../services/api";
 
-type SearchFilter = "all" | "artist" | "album";
+type SearchFilter =
+  | "all"
+  | "artist"
+  | "album"
+  | "playlist"
+  | "track";
 
 export default function SearchScreen() {
-  const [songs, setSongs] = useState<any[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<SearchFilter>("all");
   const { playSong, currentSong } = usePlayer();
@@ -45,6 +53,11 @@ export default function SearchScreen() {
       const title = (song.title || "").toLowerCase();
       const artist = (song.artist || "").toLowerCase();
       const album = (song.album || "").toLowerCase();
+      const playlist = (
+        song.playlist ||
+        song.album ||
+        ""
+      ).toLowerCase();
 
       if (filter === "artist") {
         return artist.includes(normalizedKeyword);
@@ -54,10 +67,19 @@ export default function SearchScreen() {
         return album.includes(normalizedKeyword);
       }
 
+      if (filter === "playlist") {
+        return playlist.includes(normalizedKeyword);
+      }
+
+      if (filter === "track") {
+        return title.includes(normalizedKeyword);
+      }
+
       return (
         title.includes(normalizedKeyword) ||
         artist.includes(normalizedKeyword) ||
-        album.includes(normalizedKeyword)
+        album.includes(normalizedKeyword) ||
+        playlist.includes(normalizedKeyword)
       );
     });
   }, [songs, keyword, filter]);
@@ -93,6 +115,16 @@ export default function SearchScreen() {
           active={filter === "album"}
           onPress={() => setFilter("album")}
         />
+        <FilterChip
+          label="Playlist"
+          active={filter === "playlist"}
+          onPress={() => setFilter("playlist")}
+        />
+        <FilterChip
+          label="Track"
+          active={filter === "track"}
+          onPress={() => setFilter("track")}
+        />
       </View>
 
       <FlatList
@@ -106,7 +138,7 @@ export default function SearchScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => playSong(item)}
+            onPress={() => playSong(item, filteredSongs)}
           >
             <Image
               source={{ uri: item.image }}
@@ -189,6 +221,7 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     marginBottom: 12,
     gap: 8
   },
