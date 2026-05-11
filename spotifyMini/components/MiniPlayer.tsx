@@ -62,7 +62,7 @@ export default function MiniPlayer() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 85,
+    bottom: 0,
     left: 10,
     right: 10,
     backgroundColor: "#282828",
