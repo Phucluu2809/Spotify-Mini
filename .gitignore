@@ -1,0 +1,86 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Node modules
+node_modules/
+npm-debug.log
+npm-debug.log.*
+yarn-debug.log
+yarn-error.log
+lerna-debug.log
+.pnpm-debug.log
+
+# Dependencies lock files (optional, you can commit these)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# OS files
+.DS_Store
+Thumbs.db
+.Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settingings/
+*.sublime-workspace
+.sublime-project
+.eslintcache
+
+# Expo / React Native
+.expo/
+.expo-shared/
+dist/
+build/
+*.jsbundle
+*.ipa
+*.apk
+*.aab
+*.mobileprovision
+*.p8
+*.p12
+
+# Expo Go
+.expo-shared/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Backend specific
+spotifyMiniBE/uploads/
+spotifyMiniBE/logs/
+spotifyMiniBE/.tern-port
+
+# Frontend specific
+spotifyMini/.tern-port
+spotifyMini/web-build/
+
+# Mac
+.AppleDouble
+.LSOverride
+*.sublime-workspace
+
+# Windows
+ehthumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Misc
+.prettierignore
+.env.example
+.bundle/

@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const connectDB = require('./config/db');
 const songRoutes = require('./routes/song.routes');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/songs', songRoutes);
+app.use('/auth', authRoutes);
 
 app.get('/', (req, res) => {
   res.send('Spotify Mini API running');

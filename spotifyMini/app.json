@@ -2,20 +2,23 @@
   "expo": {
     "name": "SpotifyMini",
     "slug": "spotifyMini",
-
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
-
     "android": {
       "permissions": [
         "FOREGROUND_SERVICE",
         "WAKE_LOCK"
       ],
       "package": "com.spotifymini.app"
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

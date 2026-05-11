@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_URL } from "../config/api";
 
 import {
   Pressable,
@@ -12,9 +13,36 @@ import {
 import { Link, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../context/AuthContext";
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      setLoading(false);
+      if (res.ok) {
+        await login({ token: data.token, user: data.user });
+        router.replace('/(tabs)/home');
+      } else {
+        alert(data.message || 'Login failed');
+      }
+    } catch (err) {
+      setLoading(false);
+      alert('Network error');
+    }
+  };
 
   return (
     <LinearGradient
@@ -46,6 +74,8 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
 
@@ -60,6 +90,8 @@ export default function LoginScreen() {
                 placeholderTextColor="#5E665F"
                 style={styles.input}
                 secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
               />
 
               <Pressable
@@ -77,9 +109,10 @@ export default function LoginScreen() {
 
             <Pressable
               style={styles.primaryButton}
-              onPress={() => router.replace("/(tabs)/home")}
+              onPress={handleLogin}
+              disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>Login to Collection</Text>
+              <Text style={styles.primaryButtonText}>{loading ? 'Logging in...' : 'Login to Collection'}</Text>
             </Pressable>
 
             <View style={styles.footerRow}>
