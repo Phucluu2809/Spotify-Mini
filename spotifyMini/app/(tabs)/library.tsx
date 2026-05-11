@@ -3,17 +3,21 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image
+  Image,
+  TouchableOpacity
 } from "react-native";
 
 import { useEffect, useState } from "react";
 
 import { API } from "../../services/api";
-
-import MiniPlayer from "../../components/MiniPlayer";
+import {
+  usePlayer,
+  type Song
+} from "../../context/PlayerContext";
 
 export default function Library() {
-  const [songs, setSongs] = useState<any[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const { playSong, currentSong } = usePlayer();
 
   useEffect(() => {
     fetchSongs();
@@ -36,7 +40,10 @@ export default function Library() {
         numColumns={2}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => playSong(item, songs)}
+          >
             <Image
               source={{ uri: item.image }}
               style={styles.image}
@@ -49,7 +56,10 @@ export default function Library() {
             <Text style={styles.artist}>
               {item.artist}
             </Text>
-          </View>
+            {currentSong?._id === item._id && (
+              <Text style={styles.playing}>Playing...</Text>
+            )}
+          </TouchableOpacity>
         )}
       />
 
@@ -92,5 +102,9 @@ const styles = StyleSheet.create({
 
   artist: {
     color: "gray"
+  },
+  playing: {
+    color: "#1DB954",
+    marginTop: 4
   }
 });
