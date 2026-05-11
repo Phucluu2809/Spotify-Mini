@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 
 const profile = {
   name: 'Alex Johnson',
   email: 'alex@sonicgallery.com',
+  role: 'user' as const,
 };
 
 const settingsGroups = [
@@ -82,6 +84,7 @@ function SectionCard({ title, items }: { title: string; items: SettingItem[] }) 
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { user, logout } = useAuth();
 
   const groupsWithActions = settingsGroups.map((group) => ({
     ...group,
@@ -96,6 +99,10 @@ export default function SettingsScreen() {
       };
     }),
   }));
+
+  const displayName = user?.name ?? profile.name;
+  const displayEmail = user?.email ?? profile.email;
+  const displayRole = user?.role ?? profile.role;
 
   return (
     <View style={styles.screen}>
@@ -126,8 +133,9 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.email}>{profile.email}</Text>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.email}>{displayEmail}</Text>
+          <Text style={styles.role}>{displayRole.toUpperCase()}</Text>
 
         </View>
 
@@ -139,7 +147,7 @@ export default function SettingsScreen() {
             ))}
         </View>
 
-        <Pressable style={styles.logoutButton}>
+        <Pressable style={styles.logoutButton} onPress={logout}>
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
       </ScrollView>
@@ -228,6 +236,14 @@ const styles = StyleSheet.create({
     color: '#6f726f',
     fontSize: 13,
     letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    marginBottom: 18,
+  },
+  role: {
+    color: '#1fd05a',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 18,
   },

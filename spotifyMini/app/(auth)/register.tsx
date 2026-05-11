@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { API_URL } from "../config/api";
 
 import {
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +18,38 @@ import { Ionicons } from "@expo/vector-icons";
 export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [role, setRole] = useState<'user' | 'artist'>('user');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!name || !email || !password) {
+      return alert('Please complete all fields');
+    }
+    if (password !== confirm) return alert('Passwords do not match');
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, role })
+      });
+      const data = await res.json();
+      setLoading(false);
+      if (res.ok) {
+        router.replace('/(auth)/login');
+      } else {
+        alert(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      setLoading(false);
+      alert('Network error');
+    }
+  };
 
   return (
     <LinearGradient
@@ -27,106 +61,138 @@ export default function RegisterScreen() {
       <View style={styles.glowRight} />
 
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
-              <Ionicons name="arrow-back" size={24} color="#47E06F" />
-            </Pressable>
-            <Text style={styles.headerTitle}>Create account</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-
-          <View style={styles.hero}>
-            <View style={styles.logoWrap}>
-              <Ionicons name="pulse" size={30} color="#0B0F0D" />
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <Pressable onPress={() => router.back()} hitSlop={12}>
+                <Ionicons name="arrow-back" size={24} color="#47E06F" />
+              </Pressable>
+              <Text style={styles.headerTitle}>Create account</Text>
+              <View style={styles.headerSpacer} />
             </View>
 
-            <Text style={styles.brand}>Spotify Mini</Text>
-            <Text style={styles.tagline}>Your high-fidelity editorial retreat.</Text>
-          </View>
+            <View style={styles.hero}>
+              <View style={styles.logoWrap}>
+                <Ionicons name="pulse" size={30} color="#0B0F0D" />
+              </View>
 
-          <View style={styles.formBlock}>
-            <Text style={styles.label}>Full name</Text>
-            <View style={styles.field}>
-              <TextInput
-                placeholder="Alex Rivera"
-                placeholderTextColor="#5E665F"
-                style={styles.input}
-              />
+              <Text style={styles.brand}>Spotify Mini</Text>
+              <Text style={styles.tagline}>Your high-fidelity editorial retreat.</Text>
             </View>
 
-            <Text style={styles.label}>Email address</Text>
-            <View style={styles.field}>
-              <TextInput
-                placeholder="alex@sanctuary.com"
-                placeholderTextColor="#5E665F"
-                style={styles.input}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            <View style={styles.formBlock}>
+              <Text style={styles.label}>Full name</Text>
+              <View style={styles.field}>
+                <TextInput
+                  placeholder="Alex Rivera"
+                  placeholderTextColor="#5E665F"
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
 
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.fieldWithIcon}>
-              <TextInput
-                placeholder="••••••••••••"
-                placeholderTextColor="#5E665F"
-                style={styles.input}
-                secureTextEntry={!showPassword}
-              />
+              <Text style={styles.label}>Email address</Text>
+              <View style={styles.field}>
+                <TextInput
+                  placeholder="alex@sanctuary.com"
+                  placeholderTextColor="#5E665F"
+                  style={styles.input}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+
+              <Text style={styles.label}>Account type</Text>
+              <View style={styles.roleRow}>
+                <Pressable
+                  onPress={() => setRole('user')}
+                  style={[styles.roleChip, role === 'user' && styles.roleChipActive]}
+                >
+                  <Text style={[styles.roleChipText, role === 'user' && styles.roleChipTextActive]}>User</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setRole('artist')}
+                  style={[styles.roleChip, role === 'artist' && styles.roleChipActive]}
+                >
+                  <Text style={[styles.roleChipText, role === 'artist' && styles.roleChipTextActive]}>Artist</Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.fieldWithIcon}>
+                <TextInput
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#5E665F"
+                  style={styles.input}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+
+                <Pressable
+                  onPress={() => setShowPassword((value) => !value)}
+                  hitSlop={10}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#667067"
+                  />
+                </Pressable>
+              </View>
+
+              <Text style={styles.label}>Confirm password</Text>
+              <View style={styles.fieldWithIcon}>
+                <TextInput
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#5E665F"
+                  style={styles.input}
+                  secureTextEntry={!showConfirm}
+                  value={confirm}
+                  onChangeText={setConfirm}
+                />
+
+                <Pressable
+                  onPress={() => setShowConfirm((value) => !value)}
+                  hitSlop={10}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={showConfirm ? "eye" : "eye-off"}
+                    size={20}
+                    color="#667067"
+                  />
+                </Pressable>
+              </View>
 
               <Pressable
-                onPress={() => setShowPassword((value) => !value)}
-                hitSlop={10}
-                style={styles.eyeButton}
+                style={styles.primaryButton}
+                onPress={handleRegister}
+                disabled={loading}
               >
-                <Ionicons
-                  name={showPassword ? "eye" : "eye-off"}
-                  size={20}
-                  color="#667067"
-                />
+                <Text style={styles.primaryButtonText}>{loading ? 'Creating...' : 'Create account'}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#0B0F0D" />
               </Pressable>
-            </View>
 
-            <Text style={styles.label}>Confirm password</Text>
-            <View style={styles.fieldWithIcon}>
-              <TextInput
-                placeholder="••••••••••••"
-                placeholderTextColor="#5E665F"
-                style={styles.input}
-                secureTextEntry={!showConfirm}
-              />
-
-              <Pressable
-                onPress={() => setShowConfirm((value) => !value)}
-                hitSlop={10}
-                style={styles.eyeButton}
-              >
-                <Ionicons
-                  name={showConfirm ? "eye" : "eye-off"}
-                  size={20}
-                  color="#667067"
-                />
-              </Pressable>
-            </View>
-
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => router.replace("/(tabs)/home")}
-            >
-              <Text style={styles.primaryButtonText}>Create account</Text>
-              <Ionicons name="arrow-forward" size={18} color="#0B0F0D" />
-            </Pressable>
-
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Already have an account?</Text>
-              <Link href="/(auth)/login" style={styles.footerLink}>
-                Log in
-              </Link>
+              <View style={styles.footerRow}>
+                <Text style={styles.footerText}>Already have an account?</Text>
+                <Link href="/(auth)/login" style={styles.footerLink}>
+                  Log in
+                </Link>
+              </View>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -140,10 +206,14 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 18,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 22,
-    justifyContent: "center"
+    justifyContent: "flex-start"
   },
   glowLeft: {
     position: "absolute",
@@ -164,13 +234,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(30, 185, 84, 0.12)"
   },
   header: {
-    position: "absolute",
-    top: 12,
-    left: 22,
-    right: 22,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    marginBottom: 22
   },
   headerTitle: {
     color: "#47E06F",
@@ -183,8 +250,8 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: "center",
-    marginBottom: 28,
-    marginTop: 12
+    marginBottom: 30,
+    marginTop: 4
   },
   logoWrap: {
     width: 74,
@@ -213,6 +280,32 @@ const styles = StyleSheet.create({
   },
   formBlock: {
     gap: 12
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  roleChip: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#1A1E1B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleChipActive: {
+    borderColor: '#47E06F',
+    backgroundColor: 'rgba(71, 224, 111, 0.12)',
+  },
+  roleChipText: {
+    color: '#AAB4A7',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  roleChipTextActive: {
+    color: '#47E06F',
   },
   label: {
     color: "#C3CBBF",

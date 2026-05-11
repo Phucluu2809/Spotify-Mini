@@ -13,6 +13,8 @@
     "axios": "^1.15.2",
     "cloudinary": "^2.10.0",
     "cors": "^2.8.6",
+    "bcrypt": "^5.1.0",
+    "jsonwebtoken": "^9.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.6.1",
