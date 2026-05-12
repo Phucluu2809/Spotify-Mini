@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken');
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, password, role } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
     const normalizedRole = role === 'artist' ? 'artist' : 'user';
 
     if (!name || !email || !password) {
@@ -19,7 +20,6 @@ const register = async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
-
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error(err);
@@ -29,7 +29,9 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
+
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
     const user = await User.findOne({ email });
@@ -39,7 +41,6 @@ const login = async (req, res) => {
     if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
-
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error(err);
