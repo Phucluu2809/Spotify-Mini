@@ -7,7 +7,6 @@ import {
   ImageBackground,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -51,14 +50,13 @@ export default function PlaylistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { currentSong, isPlaying, playSong } = usePlayer();
-  const { getPlaylistById, addSongToPlaylist, removeSongFromPlaylist } = usePlaylist();
+  const { getPlaylistById, addSongToPlaylist, removeSongFromPlaylist, deletePlaylist } = usePlaylist();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
   const [accentColor] = useState(getRandomAccentColor());
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [loadingModal, setLoadingModal] = useState(false);
-  const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchPlaylist = async () => {
@@ -84,7 +82,6 @@ export default function PlaylistScreen() {
       setAvailableSongs(res.data || []);
     } catch (err) {
       console.log('Error fetching songs:', err);
-      Alert.alert('Lỗi', 'Không thể tải danh sách bài hát');
     } finally {
       setLoadingModal(false);
     }
@@ -94,13 +91,9 @@ export default function PlaylistScreen() {
     if (!playlist?._id) return;
     try {
       const updated = await addSongToPlaylist(playlist._id, songId);
-      if (updated) {
-        setPlaylist(updated);
-        Alert.alert('Thành công', 'Bài hát đã được thêm vào playlist');
-      }
+      if (updated) setPlaylist(updated);
     } catch (err) {
       console.log('Error adding song:', err);
-      Alert.alert('Lỗi', 'Không thể thêm bài hát');
     }
   };
 
@@ -108,19 +101,95 @@ export default function PlaylistScreen() {
     if (!playlist?._id) return;
     try {
       const updated = await removeSongFromPlaylist(playlist._id, songId);
-      if (updated) {
-        setPlaylist(updated);
-        Alert.alert('Thành công', 'Bài hát đã được xóa khỏi playlist');
-      }
+      if (updated) setPlaylist(updated);
     } catch (err) {
       console.log('Error removing song:', err);
-      Alert.alert('Lỗi', 'Không thể xóa bài hát');
     }
   };
 
-  const isSongInPlaylist = (songId: string) => {
-    return playlist?.songs?.some(s => s._id === songId) ?? false;
+  const handleDeletePlaylist = () => {
+    Alert.alert(
+      'Xóa playlist',
+      `Bạn chắc chắn muốn xóa "${playlist?.name}"?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            if (!playlist?._id) return;
+            const ok = await deletePlaylist(playlist._id);
+            if (ok) router.back();
+          },
+        },
+      ]
+    );
   };
+
+  const isSongInPlaylist = (songId: string) =>
+    playlist?.songs?.some((s) => s._id === songId) ?? false;
+
+  const ListHeader = () => (
+    <>
+      <ImageBackground
+        source={{ uri: playlist?.cover || `https://picsum.photos/seed/${playlist?._id}/400/400` }}
+        style={[styles.hero, { backgroundColor: accentColor }]}
+      >
+        <View style={styles.heroOverlay} />
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </Pressable>
+        <View style={styles.heroText}>
+          <Text style={styles.heroTitle}>{playlist?.name || 'Playlist'}</Text>
+          {playlist?.description ? (
+            <Text style={styles.heroSubtitle}>{playlist.description}</Text>
+          ) : null}
+          <Text style={styles.heroCount}>{playlist?.songs?.length || 0} bài hát</Text>
+        </View>
+      </ImageBackground>
+
+      <View style={styles.actionRow}>
+        {(playlist?.songs?.length || 0) > 0 ? (
+          <>
+            <Pressable
+              style={styles.playCircle}
+              onPress={() =>
+                playlist?.songs?.[0] && playSong(playlist.songs[0], playlist.songs)
+              }
+            >
+              <Ionicons name="play" size={22} color="#0B0F0D" />
+            </Pressable>
+
+            <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.addBtnText}>Thêm bài</Text>
+            </Pressable>
+          </>
+        ) : null}
+
+        {(playlist?.songs?.length || 0) === 0 && !loading ? (
+          <Pressable style={[styles.addBtn, styles.addBtnFull]} onPress={handleOpenAddModal}>
+            <Ionicons name="add" size={18} color="#fff" />
+            <Text style={styles.addBtnText}>Thêm bài hát đầu tiên</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color="#1DB954" size="large" />
+        </View>
+      ) : null}
+    </>
+  );
+
+  const ListFooter = () =>
+    !loading && playlist ? (
+      <Pressable style={styles.deletePlaylistBtn} onPress={handleDeletePlaylist}>
+        <Ionicons name="trash-outline" size={16} color="#E24B4A" />
+        <Text style={styles.deletePlaylistText}>Xóa playlist</Text>
+      </Pressable>
+    ) : null;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -129,50 +198,8 @@ export default function PlaylistScreen() {
         keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <>
-            <ImageBackground
-              source={{ uri: playlist?.cover || `https://picsum.photos/seed/${playlist?._id}/400/400` }}
-              style={[styles.hero, { backgroundColor: accentColor }]}
-            >
-              <View style={styles.heroOverlay} />
-              <Pressable onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="chevron-back" size={24} color="#fff" />
-              </Pressable>
-              <View style={styles.heroText}>
-                <Text style={styles.heroTitle}>{playlist?.name || 'Playlist'}</Text>
-                {playlist?.description && <Text style={styles.heroSubtitle}>{playlist.description}</Text>}
-                <Text style={styles.heroCount}>{playlist?.songs?.length || 0} bài hát</Text>
-              </View>
-            </ImageBackground>
-
-            {(playlist?.songs?.length || 0) > 0 && (
-              <View style={styles.buttonRow}>
-                <Pressable style={styles.playAllButton} onPress={() => playlist?.songs?.[0] && playSong(playlist.songs[0], playlist.songs)}>
-                  <Ionicons name="play" size={20} color="#0B0F0D" />
-                  <Text style={styles.playAllText}>Phát tất cả</Text>
-                </Pressable>
-                <Pressable style={styles.addButton} onPress={handleOpenAddModal}>
-                  <Ionicons name="add" size={20} color="#fff" />
-                  <Text style={styles.addButtonText}>Thêm bài</Text>
-                </Pressable>
-              </View>
-            )}
-
-            {(playlist?.songs?.length || 0) === 0 && !loading && (
-              <Pressable style={styles.addButton} onPress={handleOpenAddModal}>
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.addButtonText}>Thêm bài hát đầu tiên</Text>
-              </Pressable>
-            )}
-
-            {loading && (
-              <View style={styles.loadingWrap}>
-                <ActivityIndicator color="#1DB954" size="large" />
-              </View>
-            )}
-          </>
-        }
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
         renderItem={({ item, index }) => {
           const isActive = currentSong?._id === item._id;
           return (
@@ -195,9 +222,10 @@ export default function PlaylistScreen() {
                   <Text style={styles.rowDuration}>{formatDuration(item.duration)}</Text>
                 )}
               </Pressable>
+
               <Pressable
                 style={styles.removeButton}
-                onPress={() => {
+                onPress={() =>
                   Alert.alert(
                     'Xóa bài hát',
                     `Bạn muốn xóa "${item.title}" khỏi playlist?`,
@@ -205,10 +233,10 @@ export default function PlaylistScreen() {
                       { text: 'Hủy', style: 'cancel' },
                       { text: 'Xóa', style: 'destructive', onPress: () => handleRemoveSong(item._id) },
                     ]
-                  );
-                }}
+                  )
+                }
               >
-                <Ionicons name="close" size={20} color="#999" />
+                <Ionicons name="close" size={18} color="#666" />
               </Pressable>
             </View>
           );
@@ -223,8 +251,7 @@ export default function PlaylistScreen() {
           ) : null
         }
       />
-      
-      {/* Add Song Modal */}
+
       <Modal
         visible={showAddModal}
         animationType="slide"
@@ -248,28 +275,24 @@ export default function PlaylistScreen() {
             <FlatList
               data={availableSongs}
               keyExtractor={(item) => item._id}
-              renderItem={({ item, index }) => {
+              renderItem={({ item }) => {
                 const inPlaylist = isSongInPlaylist(item._id);
                 return (
                   <View style={styles.modalSongRow}>
-                    <Pressable style={{ flex: 1 }} onPress={() => playSong(item, availableSongs)}>
-                      <View style={styles.modalSongInfo}>
-                        <Image source={{ uri: item.image }} style={styles.modalSongImage} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.modalSongTitle} numberOfLines={1}>{item.title}</Text>
-                          <Text style={styles.modalSongArtist} numberOfLines={1}>{item.artist}</Text>
-                        </View>
+                    <Pressable
+                      style={styles.modalSongInfo}
+                      onPress={() => playSong(item, availableSongs)}
+                    >
+                      <Image source={{ uri: item.image }} style={styles.modalSongImage} />
+                      <View style={styles.modalSongText}>
+                        <Text style={styles.modalSongTitle} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.modalSongArtist} numberOfLines={1}>{item.artist}</Text>
                       </View>
                     </Pressable>
+
                     <Pressable
-                      style={[styles.modalAddButton, inPlaylist && styles.modalRemoveButton]}
-                      onPress={() => {
-                        if (inPlaylist) {
-                          handleRemoveSong(item._id);
-                        } else {
-                          handleAddSong(item._id);
-                        }
-                      }}
+                      style={[styles.modalToggleBtn, inPlaylist && styles.modalToggleBtnActive]}
+                      onPress={() => inPlaylist ? handleRemoveSong(item._id) : handleAddSong(item._id)}
                     >
                       <Ionicons
                         name={inPlaylist ? 'checkmark' : 'add'}
@@ -297,50 +320,139 @@ export default function PlaylistScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0E1012' },
-  content: { paddingBottom: 140 },
-  hero: { height: 300, justifyContent: 'space-between', padding: 20 },
+  content: { paddingBottom: 120 },
+
+  hero: { height: 280, justifyContent: 'space-between', padding: 20 },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
-  backButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  backButton: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center', justifyContent: 'center', zIndex: 1,
+  },
   heroText: { zIndex: 1 },
-  heroTitle: { color: '#fff', fontSize: 34, fontWeight: '900', fontStyle: 'italic', marginBottom: 6 },
+  heroTitle: { color: '#fff', fontSize: 32, fontWeight: '900', fontStyle: 'italic', marginBottom: 6 },
   heroSubtitle: { color: 'rgba(255,255,255,0.75)', fontSize: 14, marginBottom: 4 },
   heroCount: { color: 'rgba(255,255,255,0.55)', fontSize: 13 },
-  playAllButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 16, height: 50, borderRadius: 25, backgroundColor: '#53E076', marginBottom: 16 },
-  playAllText: { color: '#0B0F0D', fontSize: 16, fontWeight: '800' },
+
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 8,
+  },
+  playCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#53E076',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 3,
+  },
+  addBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#7C3AED',
+  },
+  addBtnFull: { marginTop: 8 },
+  addBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
   loadingWrap: { paddingTop: 40, alignItems: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderRadius: 12, marginHorizontal: 8, marginBottom: 2 },
+
+  rowWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    paddingRight: 8,
+    marginHorizontal: 8,
+    marginBottom: 2,
+    borderRadius: 12,
+  },
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
   rowActive: { backgroundColor: 'rgba(83,224,118,0.08)' },
-  rowIndex: { width: 24, color: '#4B5563', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  rowImage: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#1F2023' },
+  rowIndex: { width: 22, color: '#4B5563', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  rowImage: { width: 46, height: 46, borderRadius: 10, backgroundColor: '#1F2023' },
   rowInfo: { flex: 1 },
   rowTitle: { color: '#E5E2E1', fontSize: 15, fontWeight: '600', marginBottom: 3 },
   rowTitleActive: { color: '#53E076' },
   rowArtist: { color: '#6B7280', fontSize: 12 },
-  rowDuration: { color: '#6B7280', fontSize: 12 },
-  empty: { alignItems: 'center', paddingTop: 40, gap: 8 },
+  rowDuration: { color: '#6B7280', fontSize: 12, marginRight: 4 },
+  removeButton: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
+
+  empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { color: '#9CA3AF', fontSize: 18, fontWeight: '700', marginTop: 8 },
   emptySubtitle: { color: '#6B7280', fontSize: 14, textAlign: 'center', paddingHorizontal: 30 },
-  
-  // New styles for add song feature
-  buttonRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginTop: 16, marginBottom: 16 },
-  addButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 25, backgroundColor: '#7C3AED' },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  rowWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginHorizontal: 8, marginBottom: 2, borderRadius: 12 },
-  removeButton: { width: 40, height: 48, alignItems: 'center', justifyContent: 'center' },
-  
-  // Modal styles
+
+  deletePlaylistBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 32,
+    marginHorizontal: 24,
+    marginBottom: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(226,75,74,0.35)',
+    backgroundColor: 'rgba(226,75,74,0.07)',
+  },
+  deletePlaylistText: { color: '#E24B4A', fontSize: 15, fontWeight: '600' },
+
   modalContainer: { flex: 1, backgroundColor: '#0E1012' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1F2023' },
-  modalTitle: { color: '#E5E2E1', fontSize: 18, fontWeight: '700' },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F2023',
+  },
+  modalTitle: { color: '#E5E2E1', fontSize: 17, fontWeight: '700' },
   modalLoadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  modalList: { paddingHorizontal: 8, paddingTop: 8 },
-  modalSongRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12, marginBottom: 4, gap: 12 },
-  modalSongInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  modalSongImage: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#1F2023' },
-  modalSongTitle: { color: '#E5E2E1', fontSize: 14, fontWeight: '600' },
-  modalSongArtist: { color: '#6B7280', fontSize: 12, marginTop: 2 },
-  modalAddButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#333' },
-  modalRemoveButton: { backgroundColor: 'rgba(83,224,118,0.1)', borderColor: '#53E076' },
-  modalEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  modalList: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 40 },
+
+  modalSongRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    marginBottom: 2,
+  },
+  modalSongInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modalSongImage: { width: 46, height: 46, borderRadius: 8, backgroundColor: '#1F2023' },
+  modalSongText: { flex: 1 },
+  modalSongTitle: { color: '#E5E2E1', fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  modalSongArtist: { color: '#6B7280', fontSize: 12 },
+  modalToggleBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    marginLeft: 8,
+  },
+  modalToggleBtnActive: {
+    backgroundColor: 'rgba(83,224,118,0.1)',
+    borderColor: '#53E076',
+  },
+  modalEmpty: { alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 60 },
   modalEmptyText: { color: '#6B7280', fontSize: 16 },
 });

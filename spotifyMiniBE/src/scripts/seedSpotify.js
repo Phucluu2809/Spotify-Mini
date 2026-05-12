@@ -81,44 +81,48 @@ const songs = [
 const seed = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-
     console.log('MongoDB connected');
 
-    await Song.deleteMany();
 
-    const finalSongs = [];
+    let added = 0;
+    let skipped = 0;
 
     for (const song of songs) {
-      const filePath = path.join(
-        __dirname,
-        '../uploads',
-        song.file
-      );
+      // Kiểm tra bài đã tồn tại trong DB chưa (theo title + artist)
+      const existing = await Song.findOne({ title: song.title, artist: song.artist });
+
+      if (existing) {
+        console.log(`⏭  Skipped (đã có): ${song.title}`);
+        skipped++;
+        continue;
+      }
+
+      // Chưa có → upload lên Cloudinary rồi lưu vào DB
+      const filePath = path.join(__dirname, '../uploads', song.file);
 
       const uploaded = await cloudinary.uploader.upload(filePath, {
         resource_type: 'video',
-        folder: 'spotify-mini'
+        folder: 'spotify-mini',
       });
 
-      finalSongs.push({
+      await Song.create({
         spotifyId: Date.now().toString(),
         title: song.title,
         artist: song.artist,
         album: song.album,
         image: song.image,
         audio: uploaded.secure_url,
-        duration: 200000
+        duration: 200000,
       });
 
-      console.log(`Uploaded: ${song.title}`);
+      console.log(`✅ Uploaded: ${song.title}`);
+      added++;
     }
 
-    await Song.insertMany(finalSongs);
-
-    console.log('Seed success');
-        process.exit();
+    console.log(`\nSeed xong — thêm mới: ${added}, bỏ qua: ${skipped}`);
+    process.exit();
   } catch (err) {
-    console.log(err);
+    console.error(err);
     process.exit(1);
   }
 };

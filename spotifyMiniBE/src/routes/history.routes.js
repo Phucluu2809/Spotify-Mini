@@ -5,13 +5,15 @@ const {
   addHistory,
   getHistory,
   getRecentlyPlayed,
-  clearHistory
+  clearHistory,
+  getRecommendations   // thêm dòng này
 } = require('../controllers/history.controller');
 
 router.use(requireAuth);
 
 router.post('/', addHistory);
 router.get('/', getHistory);
+router.get('/recommendations', getRecommendations);   // thêm trước recently-played
 router.get('/recently-played', getRecentlyPlayed);
 router.delete('/', clearHistory);
 
