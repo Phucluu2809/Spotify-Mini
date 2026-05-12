@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
@@ -9,6 +9,15 @@ import { usePlayer } from '../../context/PlayerContext';
 type Song = {
   _id: string; title: string; artist: string;
   album: string; image: string; audio: string; duration: number;
+  artistId?: string;
+};
+
+type Artist = {
+  _id: string;
+  name: string;
+  image: string;
+  bio?: string;
+  followers?: number;
 };
 
 const formatDuration = (ms: number) => {
@@ -20,20 +29,72 @@ export default function ArtistScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const router = useRouter();
   const { playSong, currentSong, isPlaying } = usePlayer();
+  const [artist, setArtist] = useState<Artist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    API.get('/songs').then((res) => {
-      const all: Song[] = res.data;
-      const filtered = name
-        ? all.filter((s) => s.artist.toLowerCase() === decodeURIComponent(name).toLowerCase())
-        : all;
-      setSongs(filtered);
-    }).catch(console.log);
+    fetchArtistData();
   }, [name]);
 
-  const artistName = name ? decodeURIComponent(name) : 'Artist';
-  const coverImage = songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
+  const fetchArtistData = async () => {
+    try {
+      setLoading(true);
+      if (!name) {
+        setLoading(false);
+        return;
+      }
+
+      const artistName = decodeURIComponent(name);
+      
+      // Fetch artist by name
+      const artistRes = await API.get(`/artists/name/${artistName}`);
+      setArtist(artistRes.data);
+
+      // Fetch songs for this artist
+      const songsRes = await API.get(`/artists/${artistRes.data._id}/songs`);
+      setSongs(songsRes.data || []);
+    } catch (err) {
+      console.log('Error fetching artist:', err);
+      try {
+        const artistName = name ? decodeURIComponent(name) : '';
+        const songsRes = await API.get('/songs');
+        const allSongs: Song[] = songsRes.data || [];
+        const filteredSongs = allSongs.filter(
+          (song) => song.artist?.toLowerCase() === artistName.toLowerCase()
+        );
+        setSongs(filteredSongs);
+        setArtist(
+          filteredSongs.length
+            ? {
+                _id: artistName,
+                name: artistName,
+                image: filteredSongs[0].image,
+              }
+            : null
+        );
+      } catch (fallbackErr) {
+        console.log('Fallback artist fetch failed:', fallbackErr);
+        setArtist(null);
+        setSongs([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const artistName = artist?.name || (name ? decodeURIComponent(name) : 'Artist');
+  const coverImage = artist?.image || songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#53E076" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -55,7 +116,13 @@ export default function ArtistScreen() {
               <View style={styles.heroText}>
                 <Text style={styles.heroLabel}>ARTIST</Text>
                 <Text style={styles.heroName}>{artistName}</Text>
-                <Text style={styles.heroCount}>{songs.length} bài hát</Text>
+                <Text style={styles.heroCount}>
+                  {artist?.followers ? `${artist.followers.toLocaleString()} followers • ` : ''}
+                  {songs.length} bài hát
+                </Text>
+                {artist?.bio && (
+                  <Text style={styles.heroBio} numberOfLines={2}>{artist.bio}</Text>
+                )}
               </View>
             </View>
             {songs.length > 0 && (
@@ -84,6 +151,14 @@ export default function ArtistScreen() {
             </Pressable>
           );
         }}
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.empty}>
+              <Ionicons name="musical-notes-outline" size={44} color="#4B5563" />
+              <Text style={styles.emptyText}>Chưa có bài hát</Text>
+            </View>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -91,6 +166,7 @@ export default function ArtistScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#0E1012' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 140 },
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
   backButton: {
@@ -99,10 +175,11 @@ const styles = StyleSheet.create({
   },
   hero: { height: 260, marginHorizontal: 16, borderRadius: 20, overflow: 'hidden', marginBottom: 20, position: 'relative' },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  heroText: { position: 'absolute', bottom: 20, left: 20 },
+  heroText: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   heroLabel: { color: '#53E076', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 6 },
   heroName: { color: '#fff', fontSize: 32, fontWeight: '900', marginBottom: 4 },
-  heroCount: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
+  heroCount: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginBottom: 8 },
+  heroBio: { color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 16 },
   playAllButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     marginHorizontal: 16, height: 50, borderRadius: 25, backgroundColor: '#53E076', marginBottom: 24
@@ -118,4 +195,6 @@ const styles = StyleSheet.create({
   rowTitleActive: { color: '#53E076' },
   rowAlbum: { color: '#6B7280', fontSize: 12 },
   rowDuration: { color: '#6B7280', fontSize: 12 },
+  empty: { alignItems: 'center', paddingTop: 40, gap: 8 },
+  emptyText: { color: '#9CA3AF', fontSize: 16 },
 });

@@ -12,6 +12,8 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { API } from "../../services/api";
+import { usePlaylist } from "../../context/PlaylistContext";
+import { useAlbum } from "../../context/AlbumContext";
 
 type LibrarySection = "home" | "Albums" | "Playlists" | "Artists";
 
@@ -57,14 +59,7 @@ const playlistItems: LibraryItem[] = [
   { id: "techno-core", title: "Techno Core", subtitle: "Playlist • Energy", accent: "#2D6A4F", image: getDemoImage("techno-core") },
 ];
 
-const artistItems: LibraryItem[] = [
-  { id: "the-midnight-echo", title: "The Midnight Echo", subtitle: "Artist • 2.4M Monthly Listeners", accent: "#4338CA", featured: true, image: getDemoImage("the-midnight-echo"), artistName: "The Midnight Echo" },
-  { id: "neon-velvet", title: "Neon Velvet", subtitle: "Artist", accent: "#0F766E", image: getDemoImage("neon-velvet"), artistName: "Neon Velvet" },
-  { id: "pulse-theory", title: "Pulse Theory", subtitle: "Artist", accent: "#7C3AED", image: getDemoImage("pulse-theory"), artistName: "Pulse Theory" },
-  { id: "digital-ghost", title: "Digital Ghost", subtitle: "Artist", accent: "#1E3A8A", image: getDemoImage("digital-ghost"), artistName: "Digital Ghost" },
-  { id: "luna-trace", title: "Luna Trace", subtitle: "Artist", accent: "#2D6A4F", image: getDemoImage("luna-trace"), artistName: "Luna Trace" },
-  { id: "static-dreams", title: "Static Dreams", subtitle: "Artist", accent: "#2563EB", image: getDemoImage("static-dreams"), artistName: "Static Dreams" },
-];
+const artistItems: LibraryItem[] = [];
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -158,22 +153,34 @@ function ArtistRow({ item, onPress }: { item: LibraryItem; onPress?: () => void 
   );
 }
 
-function GridSection({ label, hero, items, discoverLabel, showDiscoverPlus = true }: {
+function GridSection({
+  label,
+  hero,
+  items,
+  discoverLabel,
+  showDiscoverPlus = true,
+  onItemPress,
+  heroId,
+}: {
   label: string;
   hero: { title: string; subtitle: string; badge?: string; accent: string; titleStyle?: StyleProp<TextStyle>; subtitleStyle?: StyleProp<TextStyle>; playStyle?: StyleProp<TextStyle> };
   items: LibraryItem[];
   discoverLabel: string;
   showDiscoverPlus?: boolean;
+  onItemPress?: (id: string) => void;
+  heroId?: string;
 }) {
   return (
     <>
       <SectionHeader label={label} />
-      <HeroBlock {...hero} />
+      <Pressable onPress={() => heroId && onItemPress?.(heroId)}>
+        <HeroBlock {...hero} />
+      </Pressable>
       <View style={styles.grid}>
         {items.map((item) => (
-          <View key={item.id} style={styles.gridItem}>
+          <Pressable key={item.id} onPress={() => onItemPress?.(item.id)} style={styles.gridItem}>
             <SquareCard item={item} />
-          </View>
+          </Pressable>
         ))}
       </View>
       <View style={styles.discoverCard}>
@@ -186,9 +193,12 @@ function GridSection({ label, hero, items, discoverLabel, showDiscoverPlus = tru
 
 export default function Library() {
   const [songs, setSongs] = useState<any[]>([]);
+  const [artists, setArtists] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<LibrarySection>("home");
   const navigation = useNavigation();
   const router = useRouter();
+  const { playlists, loading: playlistsLoading } = usePlaylist();
+  const { albums, loading: albumsLoading } = useAlbum();
 
   useFocusEffect(useCallback(() => { setActiveTab("home"); }, []));
 
@@ -210,6 +220,19 @@ export default function Library() {
     fetchSongs();
   }, []);
 
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const res = await API.get("/artists");
+        setArtists(res.data || []);
+      } catch (error) {
+        console.log("Error fetching artists:", error);
+        setArtists([]);
+      }
+    };
+    fetchArtists();
+  }, []);
+
   const homeItems = useMemo<LibraryItem[]>(() => {
     const likedSongsItem = {
       id: "liked-songs",
@@ -227,6 +250,69 @@ export default function Library() {
       artistName: song.artist,
     }))];
   }, [songs]);
+
+  const albumsDisplay = useMemo<LibraryItem[]>(() => {
+    if (albums.length > 0) {
+      return albums.map((album, idx) => ({
+        id: album._id,
+        title: album.name,
+        subtitle: `Album • ${album.artist}`,
+        image: album.cover || getDemoImage(album.name),
+        accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
+      }));
+    }
+    return albumItems;
+  }, [albums]);
+
+  const playlistsDisplay = useMemo<LibraryItem[]>(() => {
+    if (playlists.length > 0) {
+      return playlists.map((playlist, idx) => ({
+        id: playlist._id,
+        title: playlist.name,
+        subtitle: `Playlist • ${playlist.songs?.length || 0} songs`,
+        image: playlist.cover || getDemoImage(playlist.name),
+        accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
+      }));
+    }
+    return playlistItems;
+  }, [playlists]);
+
+  const artistsDisplay = useMemo<LibraryItem[]>(() => {
+    if (artists.length > 0) {
+      return artists.map((artist, idx) => {
+        const songCount = artist.songs?.length || 0;
+        return {
+          id: artist._id,
+          title: artist.name,
+          subtitle: `Artist • ${artist.followers ? `${artist.followers.toLocaleString()} followers • ` : ""}${songCount} bài hát`,
+          image: artist.image || getDemoImage(artist.name),
+          accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
+          featured: idx === 0,
+          artistName: artist.name,
+        };
+      });
+    }
+
+    const grouped = songs.reduce((acc, song) => {
+      if (!song?.artist) return acc;
+      const current = acc.get(song.artist) ?? { count: 0, image: song.image };
+      acc.set(song.artist, {
+        count: current.count + 1,
+        image: current.image || song.image,
+      });
+      return acc;
+    }, new Map<string, { count: number; image?: string }>());
+
+    return Array.from(grouped.entries()).map(([artistName, meta], idx) => ({
+      id: `artist-${artistName}`,
+      title: artistName,
+      subtitle: `Artist • ${meta.count} bài hát`,
+      image: meta.image || getDemoImage(artistName),
+      accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
+      featured: idx === 0,
+      artistName,
+    }));
+  }, [artists, songs]);
 
   return (
     <View style={styles.screen}>
@@ -249,25 +335,60 @@ export default function Library() {
         </View>
 
         {activeTab === "Albums" ? (
-          <GridSection
-            label="Recents"
-            hero={{ title: "Midnight Neon", subtitle: "The Synthetic Echoes", accent: "#450AF5", titleStyle: styles.albumHeroTitle, subtitleStyle: styles.albumHeroSubtitle, playStyle: styles.albumHeroPlay as any }}
-            items={albumItems.slice(1)}
-            discoverLabel="Find albums to listen to"
-            showDiscoverPlus={false}
-          />
+          <>
+            {albumsLoading ? (
+              <Text style={styles.loadingText}>Loading albums...</Text>
+            ) : albums.length === 0 ? (
+              <Text style={styles.emptyText}>No albums found</Text>
+            ) : (
+              <GridSection
+                label="Albums"
+                hero={{
+                  title: albums[0]?.name || "Albums",
+                  subtitle: albums[0]?.artist || "Various Artists",
+                  accent: "#450AF5",
+                  titleStyle: styles.albumHeroTitle,
+                  subtitleStyle: styles.albumHeroSubtitle,
+                  playStyle: styles.albumHeroPlay as any,
+                }}
+                items={albumsDisplay.slice(1)}
+                discoverLabel="Find albums to listen to"
+                showDiscoverPlus={false}
+                heroId={albums[0]?._id}
+                onItemPress={(id) => router.push(`/album/${id}`)}
+              />
+            )}
+          </>
         ) : activeTab === "Playlists" ? (
-          <GridSection
-            label="Recently Played"
-            hero={{ title: "Liked Songs", subtitle: "1,248 songs", badge: "MOST LISTENED", accent: "#450AF5", titleStyle: styles.playlistHeroTitle, subtitleStyle: styles.playlistHeroSubtitle, playStyle: styles.playlistHeroPlay as any }}
-            items={playlistItems.slice(1)}
-            discoverLabel="Find playlists to follow"
-          />
+          <>
+            {playlistsLoading ? (
+              <Text style={styles.loadingText}>Loading playlists...</Text>
+            ) : playlists.length === 0 ? (
+              <Text style={styles.emptyText}>No playlists yet. Create one to get started!</Text>
+            ) : (
+              <GridSection
+                label="Your Playlists"
+                hero={{
+                  title: playlists[0]?.name || "Playlists",
+                  subtitle: `${playlists[0]?.songs?.length || 0} songs`,
+                  badge: "YOUR PLAYLIST",
+                  accent: "#450AF5",
+                  titleStyle: styles.playlistHeroTitle,
+                  subtitleStyle: styles.playlistHeroSubtitle,
+                  playStyle: styles.playlistHeroPlay as any,
+                }}
+                items={playlistsDisplay.slice(1)}
+                discoverLabel="Create or find playlists"
+                heroId={playlists[0]?._id}
+                onItemPress={(id) => router.push(`/playlist/${id}`)}
+              />
+            )}
+          </>
         ) : activeTab === "Artists" ? (
           <>
             <SectionHeader label="Recently added" />
             <View style={styles.artistStack}>
-              {artistItems.map((item) => (
+              {artistsDisplay.map((item) => (
                 <ArtistRow
                   key={item.id}
                   item={item}
@@ -370,4 +491,6 @@ const styles = StyleSheet.create({
   artistNameFeatured: { fontSize: 18 },
   artistMeta: { color: "#BCCBB9", fontSize: 12 },
   artistMore: { width: 20, textAlign: "center", color: "#53E076", fontSize: 18, lineHeight: 18 },
+  loadingText: { color: "#BCCBB9", fontSize: 14, textAlign: "center", marginTop: 20 },
+  emptyText: { color: "#BCCBB9", fontSize: 14, textAlign: "center", marginTop: 20 },
 });

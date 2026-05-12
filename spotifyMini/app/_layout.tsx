@@ -2,7 +2,9 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { PlayerProvider } from "../context/PlayerContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import { FavoriteProvider } from "../context/FavoriteContext"; 
+import { FavoriteProvider } from "../context/FavoriteContext";
+import { PlaylistProvider } from "../context/PlaylistContext";
+import { AlbumProvider } from "../context/AlbumContext";
 
 function RootNavigator() {
   const { token, isReady } = useAuth();
@@ -30,8 +32,12 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <PlayerProvider>
-        <FavoriteProvider>  
-          <RootNavigator />
+        <FavoriteProvider>
+          <PlaylistProvider>
+            <AlbumProvider>
+              <RootNavigator />
+            </AlbumProvider>
+          </PlaylistProvider>
         </FavoriteProvider>
       </PlayerProvider>
     </AuthProvider>

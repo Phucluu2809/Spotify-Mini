@@ -12,19 +12,30 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
+import { usePlaylist } from "../context/PlaylistContext";
 
 export default function AddPlaylistScreen() {
   const router = useRouter();
+  const { createPlaylist, loading } = usePlaylist();
   const [playlistName, setPlaylistName] = useState("");
+  const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!playlistName.trim()) {
       Alert.alert("Thiếu tên playlist", "Vui lòng nhập tên playlist trước khi tạo.");
       return;
     }
-    router.push(`/playlist-detail?name=${encodeURIComponent(playlistName.trim())}`);
+
+    const newPlaylist = await createPlaylist(playlistName.trim(), description.trim(), isPrivate);
+    if (newPlaylist) {
+      Alert.alert("Thành công", "Playlist đã được tạo!");
+      router.push(`/playlist/${newPlaylist._id}`);
+    } else {
+      Alert.alert("Lỗi", "Không thể tạo playlist. Vui lòng thử lại.");
+    }
   };
 
   return (
@@ -68,6 +79,16 @@ export default function AddPlaylistScreen() {
               placeholder="Name your playlist"
               placeholderTextColor="rgba(255,255,255,0.2)"
               style={styles.input}
+              editable={!loading}
+            />
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Add description (optional)"
+              placeholderTextColor="rgba(255,255,255,0.2)"
+              style={[styles.input, styles.descriptionInput]}
+              multiline
+              editable={!loading}
             />
             <Text style={styles.helperText}>
               Give your creation a title that resonates with the mood. You can
@@ -76,11 +97,19 @@ export default function AddPlaylistScreen() {
           </View>
 
           <View style={styles.actions}>
-            <Pressable style={styles.createButton} onPress={handleCreate}>
-              <Text style={styles.createButtonText}>Create</Text>
+            <Pressable
+              style={[styles.createButton, loading && styles.createButtonDisabled]}
+              onPress={handleCreate}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#004118" size="small" />
+              ) : (
+                <Text style={styles.createButtonText}>Create</Text>
+              )}
             </Pressable>
-            <Pressable>
-              <Text style={styles.skipText}>SKIP FOR NOW</Text>
+            <Pressable onPress={() => router.back()} disabled={loading}>
+              <Text style={styles.skipText}>CANCEL</Text>
             </Pressable>
           </View>
         </LinearGradient>
@@ -208,6 +237,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
     paddingHorizontal: 16,
   },
+  descriptionInput: {
+    minHeight: 40,
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: "400",
+  },
   helperText: {
     marginTop: 18,
     color: "#BCCBB9",
@@ -228,6 +263,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#1DB954",
     alignItems: "center",
     justifyContent: "center",
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
   },
   createButtonText: {
     color: "#004118",
