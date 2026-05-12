@@ -158,11 +158,12 @@ function ArtistRow({ item, onPress }: { item: LibraryItem; onPress?: () => void 
   );
 }
 
-function GridSection({ label, hero, items, discoverLabel }: {
+function GridSection({ label, hero, items, discoverLabel, showDiscoverPlus = true }: {
   label: string;
   hero: { title: string; subtitle: string; badge?: string; accent: string; titleStyle?: StyleProp<TextStyle>; subtitleStyle?: StyleProp<TextStyle>; playStyle?: StyleProp<TextStyle> };
   items: LibraryItem[];
   discoverLabel: string;
+  showDiscoverPlus?: boolean;
 }) {
   return (
     <>
@@ -176,7 +177,7 @@ function GridSection({ label, hero, items, discoverLabel }: {
         ))}
       </View>
       <View style={styles.discoverCard}>
-        <Text style={styles.discoverPlus}>+</Text>
+        {showDiscoverPlus ? <Text style={styles.discoverPlus}>+</Text> : null}
         <Text style={styles.discoverText}>{discoverLabel}</Text>
       </View>
     </>
@@ -233,7 +234,11 @@ export default function Library() {
         <View style={styles.headerRow}>
           <Text style={styles.header}>Your Library</Text>
           <View style={styles.headerAction}>
-            <Text style={styles.headerActionText}>+</Text>
+            {activeTab === "Playlists" ? (
+              <Pressable onPress={() => router.push("/add-playlist")} hitSlop={8}>
+                <Text style={styles.headerActionText}>+</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
@@ -249,6 +254,7 @@ export default function Library() {
             hero={{ title: "Midnight Neon", subtitle: "The Synthetic Echoes", accent: "#450AF5", titleStyle: styles.albumHeroTitle, subtitleStyle: styles.albumHeroSubtitle, playStyle: styles.albumHeroPlay as any }}
             items={albumItems.slice(1)}
             discoverLabel="Find albums to listen to"
+            showDiscoverPlus={false}
           />
         ) : activeTab === "Playlists" ? (
           <GridSection
@@ -273,7 +279,6 @@ export default function Library() {
               ))}
             </View>
             <View style={styles.discoverCard}>
-              <Text style={styles.discoverPlus}>+</Text>
               <Text style={styles.discoverText}>Find more artists to follow</Text>
             </View>
           </>
