@@ -1,4 +1,5 @@
 const User = require('../models/user.model');
+const Artist = require('../models/artist.model'); 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -18,6 +19,12 @@ const register = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hashed, role: normalizedRole });
     await user.save();
+    if (normalizedRole === 'artist') {
+      await Artist.create({
+        name,
+        userId: user._id,
+      });
+    }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });

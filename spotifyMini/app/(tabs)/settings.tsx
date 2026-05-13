@@ -145,6 +145,20 @@ export default function SettingsScreen() {
             .map((group) => (
               <SectionCard key={group.title} title={group.title} items={group.items} />
             ))}
+
+          {/* ✅ THÊM: Artist Dashboard — chỉ hiện khi role là artist */}
+          {(user?.role === 'artist') && (
+            <SectionCard
+              title="Artist"
+              items={[
+                {
+                  label: 'Quản lý nhạc',
+                  icon: 'mic-outline' as const,
+                  onPress: () => router.push('/artist-dashboard' as any),
+                },
+              ]}
+            />
+          )}
         </View>
 
         <Pressable style={styles.logoutButton} onPress={logout}>

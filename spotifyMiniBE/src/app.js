@@ -26,6 +26,7 @@ app.use('/artists', artistRoutes);
 app.use('/playlists', playlistRoutes);
 app.use('/albums', albumRoutes);
 app.use('/user', userRoutes);
+app.use('/artist-dashboard', require('./routes/artistDashboard.routes'));
 
 app.get('/', (req, res) => res.send('Spotify Mini API running'));
 
