@@ -4,6 +4,7 @@ const Playlist = require('../models/playlist.model');
 const Album = require('../models/album.model');
 const Song = require('../models/song.model');
 const cloudinary = require('../config/cloudinary');
+const { ensureSongDurations } = require('../utils/songDuration');
 
 const serializeUser = (user) => ({
   id: user._id,
@@ -34,6 +35,7 @@ const getFollowedArtists = async (req, res) => {
     });
 
     if (!user) return res.status(404).json({ message: 'User not found' });
+    await Promise.all((user.followedArtists || []).map((artist) => ensureSongDurations(artist.songs)));
 
     res.json(user.followedArtists || []);
   } catch (err) {
@@ -128,6 +130,7 @@ const getFollowedPlaylists = async (req, res) => {
       populate: { path: 'songs', select: '_id title artist album image audio duration' }
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
+    await Promise.all((user.followedPlaylists || []).map((playlist) => ensureSongDurations(playlist.songs)));
 
     res.json(user.followedPlaylists || []);
   } catch (err) {
@@ -193,6 +196,7 @@ const getFollowedAlbums = async (req, res) => {
       populate: { path: 'songs', select: '_id title artist album image audio duration' }
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
+    await Promise.all((user.followedAlbums || []).map((album) => ensureSongDurations(album.songs)));
 
     res.json(user.followedAlbums || []);
   } catch (err) {

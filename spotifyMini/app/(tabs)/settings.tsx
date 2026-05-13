@@ -170,7 +170,7 @@ export default function SettingsScreen() {
               title="Artist"
               items={[
                 {
-                  label: 'Quản lý nhạc',
+                  label: 'Manage Music',
                   icon: 'mic-outline' as const,
                   onPress: () => router.push('/artist-dashboard' as any),
                 },

@@ -1,9 +1,11 @@
 const Album = require('../models/album.model');
 const Song = require('../models/song.model');
+const { ensureSongDurations } = require('../utils/songDuration');
 
 const getAlbums = async (req, res) => {
   try {
     const albums = await Album.find().populate('songs').sort({ year: -1, name: 1 });
+    await Promise.all(albums.map((album) => ensureSongDurations(album.songs)));
     res.json(albums);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -15,6 +17,7 @@ const getAlbumById = async (req, res) => {
     const { id } = req.params;
     const album = await Album.findById(id).populate('songs');
     if (!album) return res.status(404).json({ message: 'Album not found' });
+    await ensureSongDurations(album.songs);
     res.json(album);
   } catch (err) {
     res.status(500).json({ message: err.message });

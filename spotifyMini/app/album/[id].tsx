@@ -34,7 +34,8 @@ type Album = {
   songs: Song[];
 };
 
-const formatDuration = (ms: number) => {
+const formatDuration = (duration: number) => {
+  const ms = duration > 0 && duration < 1000 ? duration * 1000 : duration;
   const total = Math.floor(ms / 1000);
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
 };
@@ -62,10 +63,10 @@ export default function AlbumScreen() {
   const handlePlayAlbum = () => {
     if (!album?.songs?.length) return;
     const queue = album.songs;
-    const isAlbumActive = Boolean(currentSong && queue.some((song) => song._id === currentSong._id));
+    const isAlbumPlaying = Boolean(currentSong && queue.some((song) => song._id === currentSong._id));
 
-    if (isAlbumActive) {
-      if (!isPlaying) void togglePlayPause();
+    if (isAlbumPlaying) {
+      void togglePlayPause();
       return;
     }
 
@@ -73,6 +74,7 @@ export default function AlbumScreen() {
   };
 
   const followed = Boolean(album?._id && isAlbumFollowed(album._id));
+  const isAlbumActive = Boolean(currentSong && album?.songs?.some((song) => song._id === currentSong._id));
 
   const handleFollowToggle = async () => {
     if (!album?._id) return;
@@ -118,7 +120,7 @@ export default function AlbumScreen() {
                   style={styles.playCircle}
                   onPress={handlePlayAlbum}
                 >
-                  <Ionicons name="play" size={22} color="#0B0F0D" />
+                  <Ionicons name={isAlbumActive && isPlaying ? "pause" : "play"} size={22} color="#0B0F0D" />
                 </Pressable>
               ) : null}
               <Pressable

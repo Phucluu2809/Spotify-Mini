@@ -38,7 +38,8 @@ type Playlist = {
   cover?: string;
 };
 
-const formatDuration = (ms: number) => {
+const formatDuration = (duration: number) => {
+  const ms = duration > 0 && duration < 1000 ? duration * 1000 : duration;
   const total = Math.floor(ms / 1000);
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
 };
@@ -73,10 +74,10 @@ export default function PlaylistScreen() {
   const handlePlayPlaylist = () => {
     if (!playlist?.songs?.length) return;
     const queue = playlist.songs;
-    const isPlaylistActive = Boolean(currentSong && queue.some((song) => song._id === currentSong._id));
+    const isPlaylistPlaying = Boolean(currentSong && queue.some((song) => song._id === currentSong._id));
 
-    if (isPlaylistActive) {
-      if (!isPlaying) void togglePlayPause();
+    if (isPlaylistPlaying) {
+      void togglePlayPause();
       return;
     }
 
@@ -155,6 +156,7 @@ export default function PlaylistScreen() {
     playlist?.songs?.some((s) => s._id === songId) ?? false;
   const isOwner = Boolean(user?.id && playlist?.userId && user.id === playlist.userId);
   const followed = Boolean(playlist?._id && isPlaylistFollowed(playlist._id));
+  const isPlaylistActive = Boolean(currentSong && playlist?.songs?.some((song) => song._id === currentSong._id));
 
   const handleFollowToggle = async () => {
     if (!playlist?._id || isOwner) return;
@@ -199,7 +201,7 @@ export default function PlaylistScreen() {
               style={styles.playCircle}
               onPress={handlePlayPlaylist}
             >
-              <Ionicons name="play" size={22} color="#0B0F0D" />
+              <Ionicons name={isPlaylistActive && isPlaying ? 'pause' : 'play'} size={22} color="#0B0F0D" />
             </Pressable>
 
             {isOwner ? (

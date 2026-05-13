@@ -23,7 +23,8 @@ type Artist = {
   userId?: string;
 };
 
-const formatDuration = (ms: number) => {
+const formatDuration = (duration: number) => {
+  const ms = duration > 0 && duration < 1000 ? duration * 1000 : duration;
   const total = Math.floor(ms / 1000);
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
 };
@@ -112,16 +113,16 @@ export default function ArtistScreen() {
         await API.delete(`/artists/${artistId}/follow`);
         setIsFollowing(false);
         removeFollowedArtist(artistId);
-        Alert.alert('Đã bỏ theo dõi', `Bạn không còn theo dõi ${artist?.name}`);
+        Alert.alert('Unfollowed', `You are no longer following ${artist?.name}.`);
       } else {
         await API.post(`/artists/${artistId}/follow`, {});
         setIsFollowing(true);
         addFollowedArtist(artist);
-        Alert.alert('Đã theo dõi', `Bạn đang theo dõi ${artist?.name}`);
+        Alert.alert('Following', `You are now following ${artist?.name}.`);
       }
     } catch (err) {
       console.log('Error toggling follow:', err);
-      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái theo dõi');
+      Alert.alert('Error', 'Unable to update follow status.');
     } finally {
       setFollowLoading(false);
     }
@@ -129,10 +130,10 @@ export default function ArtistScreen() {
 
   const handlePlayArtist = () => {
     if (!songs.length) return;
-    const isArtistActive = Boolean(currentSong && songs.some((song) => song._id === currentSong._id));
+    const isArtistPlaying = Boolean(currentSong && songs.some((song) => song._id === currentSong._id));
 
-    if (isArtistActive) {
-      if (!isPlaying) void togglePlayPause();
+    if (isArtistPlaying) {
+      void togglePlayPause();
       return;
     }
 
@@ -142,6 +143,7 @@ export default function ArtistScreen() {
   const artistName = artist?.name || (name ? decodeURIComponent(name) : 'Artist');
   const coverImage = artist?.image || songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
   const isOwnArtistProfile = Boolean(user?.id && artist?.userId && user.id === artist.userId);
+  const isArtistActive = Boolean(currentSong && songs.some((song) => song._id === currentSong._id));
 
   if (loading) {
     return (
@@ -185,7 +187,7 @@ export default function ArtistScreen() {
             {songs.length > 0 && (
               <View style={styles.buttonRow}>
                 <Pressable style={styles.playAllButton} onPress={handlePlayArtist}>
-                  <Ionicons name="play" size={20} color="#0B0F0D" />
+                  <Ionicons name={isArtistActive && isPlaying ? "pause" : "play"} size={20} color="#0B0F0D" />
                 </Pressable>
                 {!isOwnArtistProfile ? (
                   <Pressable
@@ -199,7 +201,7 @@ export default function ArtistScreen() {
                       <>
                         <Ionicons name={isFollowing ? 'checkmark' : 'add'} size={20} color={isFollowing ? '#0B0F0D' : '#999'} />
                         <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-                          {isFollowing ? 'Đã theo' : 'Theo dõi'}
+                          {isFollowing ? 'Following' : 'Follow Artist'}
                         </Text>
                       </>
                     )}

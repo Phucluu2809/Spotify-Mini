@@ -485,7 +485,7 @@ export default function ArtistDashboardScreen() {
         <Pressable onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={24} color="#E5E2E1" />
         </Pressable>
-        <Text style={styles.headerTitle}>Quản lý nhạc</Text>
+        <Text style={styles.headerTitle}>Manage Music</Text>
         <View style={{ width: 36 }} />
       </View>
 

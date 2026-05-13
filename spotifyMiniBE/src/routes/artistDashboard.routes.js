@@ -6,6 +6,7 @@ const cloudinary = require('../config/cloudinary');
 const Artist = require('../models/artist.model');
 const Song = require('../models/song.model');
 const Album = require('../models/album.model');
+const { ensureSongDurations, normalizeDurationMs } = require('../utils/songDuration');
 
 async function getArtistForUser(userId, res) {
   const artist = await Artist.findOne({ userId });
@@ -23,6 +24,7 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!artist) {
       return res.status(403).json({ message: 'Artist profile not found for this user' });
     }
+    await ensureSongDurations(artist.songs);
     res.json(artist);
   } catch (err) {
     console.error(err);
@@ -37,6 +39,7 @@ router.get('/albums', requireAuth, async (req, res) => {
     if (!artist) return;
 
     const albums = await Album.find({ artistId: artist._id }).populate('songs').sort({ createdAt: -1 });
+    await Promise.all(albums.map((album) => ensureSongDurations(album.songs)));
     res.json(albums);
   } catch (err) {
     console.error(err);
@@ -130,7 +133,7 @@ router.post(
         album: targetAlbum?.name || '',
         image: imageUrl,
         audio: audioResult.secure_url,
-        duration: 0,
+        duration: normalizeDurationMs(audioResult.duration),
       });
 
       artist.songs.push(song._id);

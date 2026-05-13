@@ -188,7 +188,7 @@ export default function Library() {
   const homeItems = useMemo<LibraryItem[]>(() => {
     const collectionItem: LibraryItem = {
       id: "collection-liked",
-      title: "Collection",
+      title: "Liked Songs",
       subtitle: `Playlist • ${favorites.length} bài hát`,
       accent: "#450AF5",
       itemType: "liked",
@@ -284,11 +284,11 @@ export default function Library() {
             let tabLabel = tab;
             if (tab === "all") tabLabel = "All";
             return (
-              <TabChip 
-                key={tab} 
-                label={tabLabel} 
-                active={tab === activeTab} 
-                onPress={() => setActiveTab((prev) => (prev === tab ? "all" : tab))} 
+              <TabChip
+                key={tab}
+                label={tabLabel}
+                active={tab === activeTab}
+                onPress={() => setActiveTab((prev) => (prev === tab ? "all" : tab))}
               />
             );
           })}
@@ -352,7 +352,7 @@ export default function Library() {
               <View style={styles.emptyArtistsContainer}>
                 <Text style={styles.emptyArtistsTitle}>Chưa theo dõi artist nào</Text>
                 <Text style={styles.emptyArtistsText}>Khám phá các artist yêu thích của bạn</Text>
-                <Pressable 
+                <Pressable
                   style={styles.discoverButton}
                   onPress={() => {
                     // TODO: Navigate to artist discovery page
@@ -380,9 +380,9 @@ export default function Library() {
               </>
             )}
           </>
-        ) :(
+        ) : (
           <>
-            <SectionHeader label="Collection" />
+            <SectionHeader label="Liked Songs" />
             {homeItems.length === 1 ? (
               <Text style={styles.emptyText}>Hãy theo dõi album, artist hoặc playlist để hiển thị tại đây</Text>
             ) : null}

@@ -1,11 +1,13 @@
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
+import { View } from "react-native";
 import { PlayerProvider } from "../context/PlayerContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { FavoriteProvider } from "../context/FavoriteContext";
 import { PlaylistProvider } from "../context/PlaylistContext";
 import { AlbumProvider } from "../context/AlbumContext";
 import { ArtistProvider } from "../context/ArtistContext";
+import MiniPlayer from "../components/MiniPlayer";
 
 function RootNavigator() {
   const { token, isReady } = useAuth();
@@ -25,7 +27,10 @@ function RootNavigator() {
   if (!isReady) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#121212" } }} />
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#121212" } }} />
+      <MiniPlayer />
+    </View>
   );
 }
 

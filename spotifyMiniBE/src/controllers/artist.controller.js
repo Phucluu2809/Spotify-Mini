@@ -1,10 +1,12 @@
 const Artist = require('../models/artist.model');
 const Song = require('../models/song.model');
 const User = require('../models/user.model');
+const { ensureSongDurations } = require('../utils/songDuration');
 
 const getArtists = async (req, res) => {
   try {
     const artists = await Artist.find().populate('songs');
+    await Promise.all(artists.map((artist) => ensureSongDurations(artist.songs)));
     res.json(artists);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -15,6 +17,7 @@ const getArtistById = async (req, res) => {
   try {
     const artist = await Artist.findById(req.params.id).populate('songs');
     if (!artist) return res.status(404).json({ message: 'Artist not found' });
+    await ensureSongDurations(artist.songs);
     res.json(artist);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -26,6 +29,7 @@ const getArtistByName = async (req, res) => {
     const { name } = req.params;
     const artist = await Artist.findOne({ name: { $regex: name, $options: 'i' } }).populate('songs');
     if (!artist) return res.status(404).json({ message: 'Artist not found' });
+    await ensureSongDurations(artist.songs);
     res.json(artist);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -36,6 +40,7 @@ const getSongsByArtist = async (req, res) => {
   try {
     const { id } = req.params;
     const songs = await Song.find({ artistId: id });
+    await ensureSongDurations(songs);
     res.json(songs);
   } catch (err) {
     res.status(500).json({ message: err.message });

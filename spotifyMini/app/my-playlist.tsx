@@ -12,8 +12,12 @@ export default function MyPlaylistScreen() {
   const navigation = useNavigation();
   const { currentSong, isPlaying, playSong, togglePlayPause } = usePlayer();
   const { favorites, toggleFavorite, isFavorite } = useFavorite(); // ✅
+  const isCollectionActive = Boolean(
+    currentSong && favorites.some((song: any) => song._id === currentSong._id)
+  );
 
-  const formatDuration = (ms: number) => {
+  const formatDuration = (duration: number) => {
+    const ms = duration > 0 && duration < 1000 ? duration * 1000 : duration;
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -30,12 +34,8 @@ export default function MyPlaylistScreen() {
 
   const handlePlayAll = () => {
     if (!favorites.length) return;
-    const isCollectionActive = Boolean(
-      currentSong && favorites.some((song: any) => song._id === currentSong._id)
-    );
-
     if (isCollectionActive) {
-      if (!isPlaying) togglePlayPause();
+      togglePlayPause();
       return;
     }
 
@@ -107,8 +107,8 @@ export default function MyPlaylistScreen() {
       {/* ✅ Nút phát tất cả */}
       {favorites.length > 0 && (
         <Pressable style={styles.playAllButton} onPress={handlePlayAll}>
-          <Ionicons name="play" size={20} color="#0B0F0D" />
-          <Text style={styles.playAllText}>Phát tất cả</Text>
+          <Ionicons name={isCollectionActive && isPlaying ? "pause" : "play"} size={20} color="#0B0F0D" />
+          <Text style={styles.playAllText}>{isCollectionActive && isPlaying ? "Tạm dừng" : "Phát tất cả"}</Text>
         </Pressable>
       )}
 

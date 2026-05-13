@@ -1,5 +1,6 @@
 const Playlist = require('../models/playlist.model');
 const Song = require('../models/song.model');
+const { ensureSongDurations } = require('../utils/songDuration');
 
 const createPlaylist = async (req, res) => {
   try {
@@ -27,6 +28,7 @@ const getUserPlaylists = async (req, res) => {
   try {
     const userId = req.user.id;
     const playlists = await Playlist.find({ userId }).populate('songs').sort({ createdAt: -1 });
+    await Promise.all(playlists.map((playlist) => ensureSongDurations(playlist.songs)));
     res.json(playlists);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -38,6 +40,7 @@ const getPlaylistById = async (req, res) => {
     const { id } = req.params;
     const playlist = await Playlist.findById(id).populate('songs');
     if (!playlist) return res.status(404).json({ message: 'Playlist not found' });
+    await ensureSongDurations(playlist.songs);
     res.json(playlist);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -118,6 +121,7 @@ const addSongToPlaylist = async (req, res) => {
     playlist.songs.push(songId);
     await playlist.save();
     await playlist.populate('songs');
+    await ensureSongDurations(playlist.songs);
 
     res.json(playlist);
   } catch (err) {
@@ -141,6 +145,7 @@ const removeSongFromPlaylist = async (req, res) => {
     playlist.songs = playlist.songs.filter(s => s.toString() !== songId);
     await playlist.save();
     await playlist.populate('songs');
+    await ensureSongDurations(playlist.songs);
 
     res.json(playlist);
   } catch (err) {
