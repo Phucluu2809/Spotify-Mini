@@ -5,6 +5,7 @@ const multerUpload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
 const Artist = require('../models/artist.model');
 const Song = require('../models/song.model');
+const Album = require('../models/album.model');
 
 async function getArtistForUser(userId, res) {
   const artist = await Artist.findOne({ userId });
@@ -29,6 +30,56 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 });
 
+// GET /artist-dashboard/albums
+router.get('/albums', requireAuth, async (req, res) => {
+  try {
+    const artist = await getArtistForUser(req.user.id, res);
+    if (!artist) return;
+
+    const albums = await Album.find({ artistId: artist._id }).populate('songs').sort({ createdAt: -1 });
+    res.json(albums);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /artist-dashboard/albums
+router.post('/albums', requireAuth, async (req, res) => {
+  try {
+    const artist = await getArtistForUser(req.user.id, res);
+    if (!artist) return;
+
+    const { name, year, genre, cover } = req.body;
+    if (!name?.trim()) {
+      return res.status(400).json({ message: 'Album name is required' });
+    }
+
+    const existing = await Album.findOne({
+      artistId: artist._id,
+      name: { $regex: `^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+    });
+    if (existing) {
+      return res.status(400).json({ message: 'Album already exists for this artist' });
+    }
+
+    const album = await Album.create({
+      name: name.trim(),
+      artist: artist.name,
+      artistId: artist._id,
+      year: year || new Date().getFullYear(),
+      genre: genre || '',
+      cover: cover || '',
+      songs: [],
+    });
+
+    res.status(201).json(album);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /artist-dashboard/songs
 router.post(
   '/songs',
@@ -42,8 +93,17 @@ router.post(
       const artist = await getArtistForUser(req.user.id, res);
       if (!artist) return;
 
-      const { title, album } = req.body;
+      const { title, albumId } = req.body;
       if (!title) return res.status(400).json({ message: 'Title is required' });
+
+      let targetAlbum = null;
+      if (albumId) {
+        targetAlbum = await Album.findById(albumId);
+        if (!targetAlbum) return res.status(404).json({ message: 'Album not found' });
+        if (targetAlbum.artistId?.toString() !== artist._id.toString()) {
+          return res.status(403).json({ message: 'You can only add songs to your own albums' });
+        }
+      }
 
       const audioFile = req.files?.audio?.[0];
       if (!audioFile) return res.status(400).json({ message: 'Audio file is required' });
@@ -67,7 +127,7 @@ router.post(
         title,
         artist: artist.name,
         artistId: artist._id,
-        album: album || 'Single',
+        album: targetAlbum?.name || '',
         image: imageUrl,
         audio: audioResult.secure_url,
         duration: 0,
@@ -75,6 +135,10 @@ router.post(
 
       artist.songs.push(song._id);
       await artist.save();
+      if (targetAlbum) {
+        targetAlbum.songs.push(song._id);
+        await targetAlbum.save();
+      }
 
       res.status(201).json(song);
     } catch (err) {
@@ -102,9 +166,29 @@ router.put(
         return res.status(403).json({ message: 'You do not own this song' });
       }
 
-      const { title, album } = req.body;
+      const { title, albumId } = req.body;
       if (title) song.title = title;
-      if (album) song.album = album;
+      if (albumId !== undefined) {
+        await Album.updateMany(
+          { artistId: artist._id, songs: song._id },
+          { $pull: { songs: song._id } }
+        );
+
+        if (albumId) {
+          const nextAlbum = await Album.findById(albumId);
+          if (!nextAlbum) return res.status(404).json({ message: 'Album not found' });
+          if (nextAlbum.artistId?.toString() !== artist._id.toString()) {
+            return res.status(403).json({ message: 'You can only move songs to your own albums' });
+          }
+          if (!nextAlbum.songs.some((id) => id.toString() === song._id.toString())) {
+            nextAlbum.songs.push(song._id);
+            await nextAlbum.save();
+          }
+          song.album = nextAlbum.name;
+        } else {
+          song.album = '';
+        }
+      }
 
       const imageFile = req.files?.image?.[0];
       if (imageFile) {
@@ -141,6 +225,7 @@ router.delete('/songs/:songId', requireAuth, async (req, res) => {
     await Song.findByIdAndDelete(songId);
     artist.songs = artist.songs.filter((s) => s.toString() !== songId);
     await artist.save();
+    await Album.updateMany({ artistId: artist._id }, { $pull: { songs: song._id } });
 
     res.json({ message: 'Song deleted' });
   } catch (err) {

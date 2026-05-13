@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { API } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
 import { useArtist } from '../../context/ArtistContext';
-import * as SecureStore from 'expo-secure-store';
+import { useAuth } from '../../context/AuthContext';
 
 type Song = {
   _id: string; title: string; artist: string;
@@ -20,6 +20,7 @@ type Artist = {
   image: string;
   bio?: string;
   followers?: number;
+  userId?: string;
 };
 
 const formatDuration = (ms: number) => {
@@ -32,6 +33,7 @@ export default function ArtistScreen() {
   const router = useRouter();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { addFollowedArtist, removeFollowedArtist } = useArtist();
+  const { user } = useAuth();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function ArtistScreen() {
       }
 
       const artistName = decodeURIComponent(name);
-      
+
       // Fetch artist by name
       const artistRes = await API.get(`/artists/name/${artistName}`);
       setArtist(artistRes.data);
@@ -77,10 +79,10 @@ export default function ArtistScreen() {
         setArtist(
           filteredSongs.length
             ? {
-                _id: artistName,
-                name: artistName,
-                image: filteredSongs[0].image,
-              }
+              _id: artistName,
+              name: artistName,
+              image: filteredSongs[0].image,
+            }
             : null
         );
       } catch (fallbackErr) {
@@ -127,6 +129,7 @@ export default function ArtistScreen() {
 
   const artistName = artist?.name || (name ? decodeURIComponent(name) : 'Artist');
   const coverImage = artist?.image || songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
+  const isOwnArtistProfile = Boolean(user?.id && artist?.userId && user.id === artist.userId);
 
   if (loading) {
     return (
@@ -171,24 +174,25 @@ export default function ArtistScreen() {
               <View style={styles.buttonRow}>
                 <Pressable style={styles.playAllButton} onPress={() => playSong(songs[0], songs)}>
                   <Ionicons name="play" size={20} color="#0B0F0D" />
-                  <Text style={styles.playAllText}>Phát tất cả</Text>
                 </Pressable>
-                <Pressable 
-                  style={[styles.followButton, isFollowing && styles.followButtonActive]}
-                  onPress={handleFollowToggle}
-                  disabled={followLoading}
-                >
-                  {followLoading ? (
-                    <ActivityIndicator size="small" color={isFollowing ? '#0B0F0D' : '#999'} />
-                  ) : (
-                    <>
-                      <Ionicons name={isFollowing ? 'checkmark' : 'add'} size={20} color={isFollowing ? '#0B0F0D' : '#999'} />
-                      <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-                        {isFollowing ? 'Đã theo' : 'Theo dõi'}
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                {!isOwnArtistProfile ? (
+                  <Pressable
+                    style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                    onPress={handleFollowToggle}
+                    disabled={followLoading}
+                  >
+                    {followLoading ? (
+                      <ActivityIndicator size="small" color={isFollowing ? '#0B0F0D' : '#999'} />
+                    ) : (
+                      <>
+                        <Ionicons name={isFollowing ? 'checkmark' : 'add'} size={20} color={isFollowing ? '#0B0F0D' : '#999'} />
+                        <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
+                          {isFollowing ? 'Đã theo' : 'Theo dõi'}
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                ) : null}
               </View>
             )}
             <Text style={styles.sectionLabel}>BÀI HÁT</Text>
@@ -241,19 +245,18 @@ const styles = StyleSheet.create({
   heroCount: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginBottom: 8 },
   heroBio: { color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 16 },
   playAllButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 16, height: 50, borderRadius: 25, backgroundColor: '#53E076', marginBottom: 24
+    width: 50, height: 50, borderRadius: 25, backgroundColor: '#53E076',
+    alignItems: 'center', justifyContent: 'center'
   },
-  playAllText: { color: '#0B0F0D', fontSize: 16, fontWeight: '800' },
-  buttonRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
-  followButton: { 
+  buttonRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 24, alignItems: 'center' },
+  followButton: {
     flex: 1,
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    height: 50, 
-    borderRadius: 25, 
+    height: 50,
+    borderRadius: 25,
     borderWidth: 1.5,
     borderColor: '#333',
     backgroundColor: 'transparent'

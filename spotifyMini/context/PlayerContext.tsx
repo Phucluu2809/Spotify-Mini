@@ -3,9 +3,9 @@ import {
 } from "react";
 import { Audio, type AVPlaybackStatus } from "expo-av";
 import * as SecureStore from "expo-secure-store";
+import { API_URL } from "../app/config/api";
 
 const AUTH_TOKEN_KEY = "spotifymini.auth.token";
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.26:5000";
 
 export type Song = {
   _id: string; title: string; artist: string;
@@ -17,6 +17,7 @@ type PlayerContextType = {
   currentSong: Song | null;
   playSong: (song: Song, queue?: Song[]) => Promise<void>;
   togglePlayPause: () => Promise<void>;
+  seekTo: (nextPositionMillis: number) => Promise<void>;
   isPlaying: boolean; positionMillis: number; durationMillis: number;
   playNext: () => Promise<void>; playPrevious: () => Promise<void>;
   hasNext: boolean; hasPrevious: boolean;
@@ -28,7 +29,7 @@ const logHistory = async (song: Song) => {
   try {
     const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
     if (!token) return;
-    await fetch(`${API_BASE_URL}/history`, {
+    await fetch(`${API_URL}/history`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -95,6 +96,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (!sound) return;
     if (isPlaying) await sound.pauseAsync(); else await sound.playAsync();
   };
+  const seekTo = async (nextPositionMillis: number) => {
+    if (!sound) return;
+    const clamped = Math.max(0, Math.min(nextPositionMillis, durationMillis || nextPositionMillis));
+    await sound.setPositionAsync(clamped);
+    setPositionMillis(clamped);
+  };
   const playNext = async () => {
     const next = songQueue[currentIndex + 1];
     if (next) await playSong(next, songQueue);
@@ -108,7 +115,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <PlayerContext.Provider value={{
-      currentSong, playSong, togglePlayPause, isPlaying,
+      currentSong, playSong, togglePlayPause, seekTo, isPlaying,
       positionMillis, durationMillis, playNext, playPrevious,
       hasNext: currentIndex >= 0 && currentIndex < songQueue.length - 1,
       hasPrevious: currentIndex > 0

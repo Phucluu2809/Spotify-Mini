@@ -33,21 +33,27 @@ type Playlist = {
 
 type PlaylistContextType = {
   playlists: Playlist[];
+  followedPlaylists: Playlist[];
   loading: boolean;
   error: string | null;
   getPlaylists: () => Promise<void>;
+  getFollowedPlaylists: () => Promise<void>;
   getPlaylistById: (id: string) => Promise<Playlist | null>;
   createPlaylist: (name: string, description?: string, isPrivate?: boolean) => Promise<Playlist | null>;
   updatePlaylist: (id: string, name: string, description?: string, isPrivate?: boolean) => Promise<Playlist | null>;
   deletePlaylist: (id: string) => Promise<boolean>;
   addSongToPlaylist: (playlistId: string, songId: string) => Promise<Playlist | null>;
   removeSongFromPlaylist: (playlistId: string, songId: string) => Promise<Playlist | null>;
+  followPlaylist: (playlistId: string) => Promise<boolean>;
+  unfollowPlaylist: (playlistId: string) => Promise<boolean>;
+  isPlaylistFollowed: (playlistId: string) => boolean;
 };
 
 const PlaylistContext = createContext<PlaylistContextType | null>(null);
 
 export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [followedPlaylists, setFollowedPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +82,26 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       setPlaylists([]);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const getFollowedPlaylists = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        setFollowedPlaylists([]);
+        return;
+      }
+      const res = await fetch(`${API_URL}/user/followed-playlists`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Failed to fetch followed playlists: ${res.status}`);
+      const data = await res.json();
+      setFollowedPlaylists(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.log("Error fetching followed playlists:", err);
+      setError(err.message || "Failed to fetch followed playlists");
+      setFollowedPlaylists([]);
     }
   }, []);
 
@@ -233,23 +259,76 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
     []
   );
 
+  const followPlaylist = useCallback(async (playlistId: string) => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError("No authentication token");
+        return false;
+      }
+      const res = await fetch(`${API_URL}/user/followed-playlists/${playlistId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Failed to follow playlist: ${res.status}`);
+      await getFollowedPlaylists();
+      return true;
+    } catch (err: any) {
+      console.log("Error following playlist:", err);
+      setError(err.message || "Failed to follow playlist");
+      return false;
+    }
+  }, [getFollowedPlaylists]);
+
+  const unfollowPlaylist = useCallback(async (playlistId: string) => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError("No authentication token");
+        return false;
+      }
+      const res = await fetch(`${API_URL}/user/followed-playlists/${playlistId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Failed to unfollow playlist: ${res.status}`);
+      await getFollowedPlaylists();
+      return true;
+    } catch (err: any) {
+      console.log("Error unfollowing playlist:", err);
+      setError(err.message || "Failed to unfollow playlist");
+      return false;
+    }
+  }, [getFollowedPlaylists]);
+
+  const isPlaylistFollowed = useCallback(
+    (playlistId: string) => followedPlaylists.some((playlist) => playlist._id === playlistId),
+    [followedPlaylists]
+  );
+
   useEffect(() => {
     getPlaylists();
+    getFollowedPlaylists();
   }, []);
 
   return (
     <PlaylistContext.Provider
       value={{
         playlists,
+        followedPlaylists,
         loading,
         error,
         getPlaylists,
+        getFollowedPlaylists,
         getPlaylistById,
         createPlaylist,
         updatePlaylist,
         deletePlaylist,
         addSongToPlaylist,
         removeSongFromPlaylist,
+        followPlaylist,
+        unfollowPlaylist,
+        isPlaylistFollowed,
       }}
     >
       {children}

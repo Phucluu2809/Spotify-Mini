@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlaylist } from '../../context/PlaylistContext';
+import { useAuth } from '../../context/AuthContext';
 import { API } from '../../services/api';
 
 type Song = {
@@ -30,6 +31,7 @@ type Song = {
 
 type Playlist = {
   _id: string;
+  userId: string;
   name: string;
   description?: string;
   songs: Song[];
@@ -49,14 +51,24 @@ const getRandomAccentColor = () => {
 export default function PlaylistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const { currentSong, isPlaying, playSong } = usePlayer();
-  const { getPlaylistById, addSongToPlaylist, removeSongFromPlaylist, deletePlaylist } = usePlaylist();
+  const {
+    getPlaylistById,
+    addSongToPlaylist,
+    removeSongFromPlaylist,
+    deletePlaylist,
+    followPlaylist,
+    unfollowPlaylist,
+    isPlaylistFollowed,
+  } = usePlaylist();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
   const [accentColor] = useState(getRandomAccentColor());
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [loadingModal, setLoadingModal] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const fetchPlaylist = async () => {
@@ -128,6 +140,25 @@ export default function PlaylistScreen() {
 
   const isSongInPlaylist = (songId: string) =>
     playlist?.songs?.some((s) => s._id === songId) ?? false;
+  const isOwner = Boolean(user?.id && playlist?.userId && user.id === playlist.userId);
+  const followed = Boolean(playlist?._id && isPlaylistFollowed(playlist._id));
+
+  const handleFollowToggle = async () => {
+    if (!playlist?._id || isOwner) return;
+    setFollowLoading(true);
+    const ok = followed
+      ? await unfollowPlaylist(playlist._id)
+      : await followPlaylist(playlist._id);
+    if (ok) {
+      Alert.alert(
+        followed ? 'Đã bỏ lưu playlist' : 'Đã lưu playlist',
+        followed
+          ? `Playlist "${playlist.name}" đã được gỡ khỏi thư viện của bạn.`
+          : `Playlist "${playlist.name}" đã được thêm vào thư viện của bạn.`
+      );
+    }
+    setFollowLoading(false);
+  };
 
   const ListHeader = () => (
     <>
@@ -160,17 +191,51 @@ export default function PlaylistScreen() {
               <Ionicons name="play" size={22} color="#0B0F0D" />
             </Pressable>
 
-            <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
-              <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.addBtnText}>Thêm bài</Text>
-            </Pressable>
+            {isOwner ? (
+              <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text style={styles.addBtnText}>Thêm bài</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={[styles.followBtn, followed && styles.followBtnActive]}
+                onPress={handleFollowToggle}
+                disabled={followLoading}
+              >
+                <Ionicons
+                  name={followed ? 'checkmark' : 'add'}
+                  size={18}
+                  color={followed ? '#0B0F0D' : '#E5E2E1'}
+                />
+                <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
+                  {followed ? 'Đã lưu' : 'Lưu playlist'}
+                </Text>
+              </Pressable>
+            )}
           </>
         ) : null}
 
-        {(playlist?.songs?.length || 0) === 0 && !loading ? (
+        {(playlist?.songs?.length || 0) === 0 && !loading && isOwner ? (
           <Pressable style={[styles.addBtn, styles.addBtnFull]} onPress={handleOpenAddModal}>
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addBtnText}>Thêm bài hát đầu tiên</Text>
+          </Pressable>
+        ) : null}
+
+        {(playlist?.songs?.length || 0) === 0 && !loading && !isOwner ? (
+          <Pressable
+            style={[styles.followBtn, styles.followBtnFull, followed && styles.followBtnActive]}
+            onPress={handleFollowToggle}
+            disabled={followLoading}
+          >
+            <Ionicons
+              name={followed ? 'checkmark' : 'add'}
+              size={18}
+              color={followed ? '#0B0F0D' : '#E5E2E1'}
+            />
+            <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
+              {followed ? 'Đã lưu playlist' : 'Lưu playlist'}
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -184,7 +249,7 @@ export default function PlaylistScreen() {
   );
 
   const ListFooter = () =>
-    !loading && playlist ? (
+    !loading && playlist && isOwner ? (
       <Pressable style={styles.deletePlaylistBtn} onPress={handleDeletePlaylist}>
         <Ionicons name="trash-outline" size={16} color="#E24B4A" />
         <Text style={styles.deletePlaylistText}>Xóa playlist</Text>
@@ -223,21 +288,23 @@ export default function PlaylistScreen() {
                 )}
               </Pressable>
 
-              <Pressable
-                style={styles.removeButton}
-                onPress={() =>
-                  Alert.alert(
-                    'Xóa bài hát',
-                    `Bạn muốn xóa "${item.title}" khỏi playlist?`,
-                    [
-                      { text: 'Hủy', style: 'cancel' },
-                      { text: 'Xóa', style: 'destructive', onPress: () => handleRemoveSong(item._id) },
-                    ]
-                  )
-                }
-              >
-                <Ionicons name="close" size={18} color="#666" />
-              </Pressable>
+              {isOwner ? (
+                <Pressable
+                  style={styles.removeButton}
+                  onPress={() =>
+                    Alert.alert(
+                      'Xóa bài hát',
+                      `Bạn muốn xóa "${item.title}" khỏi playlist?`,
+                      [
+                        { text: 'Hủy', style: 'cancel' },
+                        { text: 'Xóa', style: 'destructive', onPress: () => handleRemoveSong(item._id) },
+                      ]
+                    )
+                  }
+                >
+                  <Ionicons name="close" size={18} color="#666" />
+                </Pressable>
+              ) : null}
             </View>
           );
         }}
@@ -252,15 +319,10 @@ export default function PlaylistScreen() {
         }
       />
 
-      <Modal
-        visible={showAddModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowAddModal(false)}
-      >
+      <Modal visible={showAddModal && isOwner} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAddModal(false)}>
         <SafeAreaView style={styles.modalContainer} edges={['top']}>
           <View style={styles.modalHeader}>
-            <Pressable onPress={() => setShowAddModal(false)}>
+            <Pressable onPress={() => setShowAddModal(false)} style={styles.modalCloseBtn} hitSlop={12}>
               <Ionicons name="close" size={24} color="#E5E2E1" />
             </Pressable>
             <Text style={styles.modalTitle}>Thêm bài hát</Text>
@@ -362,7 +424,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C3AED',
   },
   addBtnFull: { marginTop: 8 },
+  followBtnFull: { marginTop: 8 },
   addBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  followBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: '#53E076',
+    backgroundColor: 'rgba(83,224,118,0.08)',
+  },
+  followBtnActive: {
+    borderColor: '#53E076',
+    backgroundColor: '#53E076',
+  },
+  followBtnText: { color: '#E5E2E1', fontSize: 15, fontWeight: '700' },
+  followBtnTextActive: { color: '#0B0F0D' },
 
   loadingWrap: { paddingTop: 40, alignItems: 'center' },
 
@@ -418,9 +499,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: 22,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1F2023',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: { color: '#E5E2E1', fontSize: 17, fontWeight: '700' },
   modalLoadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

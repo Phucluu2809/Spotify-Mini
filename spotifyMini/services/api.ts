@@ -1,10 +1,9 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
-
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").trim();
+import { API_URL } from "../app/config/api";
 
 export const API = axios.create({
-  baseURL: API_BASE_URL
+  baseURL: API_URL
 });
 
 // Add Bearer token to all requests

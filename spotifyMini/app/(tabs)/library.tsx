@@ -11,12 +11,13 @@ import {
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { API } from "../../services/api";
+import { Ionicons } from "@expo/vector-icons";
 import { usePlaylist } from "../../context/PlaylistContext";
 import { useAlbum } from "../../context/AlbumContext";
 import { useArtist } from "../../context/ArtistContext";
+import { useFavorite } from "../../context/FavoriteContext";
 
-type LibrarySection = "home" | "Albums" | "Playlists" | "Artists";
+type LibrarySection = "home" | "all" | "Albums" | "Playlists" | "Artists";
 
 type LibraryItem = {
   id: string;
@@ -26,41 +27,14 @@ type LibraryItem = {
   accent?: string;
   featured?: boolean;
   artistName?: string;
+  itemType?: "liked" | "playlist" | "album" | "artist";
+  entityId?: string;
 };
 
 const getDemoImage = (seed: string) =>
   `https://picsum.photos/seed/${encodeURIComponent(seed)}/400/400`;
 
-const tabs: Array<Exclude<LibrarySection, "home">> = ["Albums", "Playlists", "Artists"];
-
-const fallbackItems: LibraryItem[] = [
-  { id: "liked-songs", title: "Liked Songs", subtitle: "Playlist • 412 songs", accent: "#4338CA", image: getDemoImage("liked-songs") },
-  { id: "after-hours-mood", title: "After Hours Mood", subtitle: "Playlist • Made for you", accent: "#2D6A4F", image: getDemoImage("after-hours-mood") },
-  { id: "midnight-cinema", title: "Midnight Cinema", subtitle: "Artist", accent: "#7C3AED", image: getDemoImage("midnight-cinema"), artistName: "Midnight Cinema" },
-  { id: "parachutes", title: "Parachutes", subtitle: "Album • Coldplay", accent: "#0F766E", image: getDemoImage("parachutes") },
-  { id: "focus-flow", title: "Focus Flow", subtitle: "Playlist • 120 tracks", accent: "#2563EB", image: getDemoImage("focus-flow") },
-  { id: "deep-house-chill", title: "Deep House Chill", subtitle: "Playlist • Recently Added", accent: "#1E3A8A", image: getDemoImage("deep-house-chill") },
-];
-
-const albumItems: LibraryItem[] = [
-  { id: "midnight-neon", title: "Midnight Neon", subtitle: "The Synthetic Echoes", accent: "#450AF5", image: getDemoImage("midnight-neon") },
-  { id: "dark-horizon", title: "Dark Horizon", subtitle: "Luna Ray", accent: "#1E3A8A", image: getDemoImage("dark-horizon") },
-  { id: "velocity", title: "Velocity", subtitle: "Chrome Pulse", accent: "#0F766E", image: getDemoImage("velocity") },
-  { id: "static-bloom", title: "Static Bloom", subtitle: "The Quiet Ones", accent: "#7C3AED", image: getDemoImage("static-bloom") },
-  { id: "vapor-trails", title: "Vapor Trails", subtitle: "Signal Path", accent: "#2D6A4F", image: getDemoImage("vapor-trails") },
-  { id: "groove-theory", title: "Groove Theory", subtitle: "Vinyl Souls", accent: "#2563EB", image: getDemoImage("groove-theory") },
-];
-
-const playlistItems: LibraryItem[] = [
-  { id: "liked-songs", title: "Liked Songs", subtitle: "1,248 songs", accent: "#450AF5", featured: true, image: getDemoImage("liked-songs-playlist") },
-  { id: "midnight-echoes", title: "Midnight Echoes", subtitle: "Playlist • 48 songs", accent: "#4338CA", image: getDemoImage("midnight-echoes") },
-  { id: "velvet-vinyl", title: "Velvet Vinyl", subtitle: "Playlist • Collector Edition", accent: "#0F766E", image: getDemoImage("velvet-vinyl") },
-  { id: "after-hours-live", title: "After Hours Live", subtitle: "Playlist • Curated", accent: "#7C3AED", image: getDemoImage("after-hours-live") },
-  { id: "neo-soul-focus", title: "Neo Soul Focus", subtitle: "Playlist • Study Vibes", accent: "#1E3A8A", image: getDemoImage("neo-soul-focus") },
-  { id: "techno-core", title: "Techno Core", subtitle: "Playlist • Energy", accent: "#2D6A4F", image: getDemoImage("techno-core") },
-];
-
-const artistItems: LibraryItem[] = [];
+const tabs: Array<Exclude<LibrarySection, "home">> = ["all", "Albums", "Playlists", "Artists"];
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -119,6 +93,8 @@ function ListRow({ item, onPress }: { item: LibraryItem; onPress?: () => void })
       <View style={[styles.listArt, !item.image && { backgroundColor: item.accent ?? "#2D6A4F" }]}>
         {item.image ? (
           <Image source={{ uri: item.image }} style={styles.listImage} />
+        ) : item.itemType === "liked" ? (
+          <Ionicons name="heart" size={24} color="#FFFFFF" />
         ) : (
           <Text style={styles.listArtText}>
             {item.title.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
@@ -193,55 +169,73 @@ function GridSection({
 }
 
 export default function Library() {
-  const [songs, setSongs] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<LibrarySection>("home");
+  const [activeTab, setActiveTab] = useState<LibrarySection>("all");
   const navigation = useNavigation();
   const router = useRouter();
-  const { playlists, loading: playlistsLoading } = usePlaylist();
-  const { albums, loading: albumsLoading } = useAlbum();
+  const { followedPlaylists, loading: playlistsLoading } = usePlaylist();
+  const { followedAlbums, loading: albumsLoading } = useAlbum();
   const { followedArtists, loading: artistsLoading } = useArtist();
+  const { favorites } = useFavorite();
 
-  useFocusEffect(useCallback(() => { setActiveTab("home"); }, []));
+  useFocusEffect(useCallback(() => { setActiveTab("all"); }, []));
 
   useEffect(() => {
     const parentNavigation = navigation.getParent?.() as any;
-    const unsubscribe = parentNavigation?.addListener("tabPress", () => setActiveTab("home"));
+    const unsubscribe = parentNavigation?.addListener("tabPress", () => setActiveTab("all"));
     return unsubscribe;
   }, [navigation]);
 
-  useEffect(() => {
-    const fetchSongs = async () => {
-      try {
-        const res = await API.get("/songs");
-        setSongs(res.data);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    fetchSongs();
-  }, []);
-
   const homeItems = useMemo<LibraryItem[]>(() => {
-    const likedSongsItem = {
-      id: "liked-songs",
-      title: "Liked Songs",
-      subtitle: `Playlist • ${songs.length} songs`,
-      accent: "#4338CA",
-      image: getDemoImage("liked-songs"),
+    const collectionItem: LibraryItem = {
+      id: "collection-liked",
+      title: "Collection",
+      subtitle: `Playlist • ${favorites.length} bài hát`,
+      accent: "#450AF5",
+      itemType: "liked",
     };
-    if (!songs.length) return fallbackItems;
-    return [likedSongsItem, ...songs.map((song) => ({
-      id: song._id,
-      title: song.title,
-      subtitle: `${song.artist} • Song`,
-      image: song.image,
-      artistName: song.artist,
-    }))];
-  }, [songs]);
+
+    const followedPlaylistItems: LibraryItem[] = followedPlaylists.map((playlist, idx) => ({
+      id: `playlist-${playlist._id}`,
+      title: playlist.name,
+      subtitle: `Playlist • ${playlist.songs?.length || 0} bài hát`,
+      image: playlist.cover || getDemoImage(playlist.name),
+      accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
+      itemType: "playlist",
+      entityId: playlist._id,
+    }));
+
+    const followedAlbumItems: LibraryItem[] = followedAlbums.map((album, idx) => ({
+      id: `album-${album._id}`,
+      title: album.name,
+      subtitle: `Album • ${album.artist}`,
+      image: album.cover || getDemoImage(album.name),
+      accent: ["#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB", "#4338CA"][idx % 6],
+      itemType: "album",
+      entityId: album._id,
+    }));
+
+    const followedArtistItems: LibraryItem[] = followedArtists.map((artist, idx) => ({
+      id: `artist-${artist._id}`,
+      title: artist.name,
+      subtitle: `Artist • ${artist.songs?.length || 0} bài hát`,
+      image: artist.image || getDemoImage(artist.name),
+      accent: ["#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB", "#4338CA", "#0F766E"][idx % 6],
+      itemType: "artist",
+      entityId: artist._id,
+      artistName: artist.name,
+    }));
+
+    return [
+      collectionItem,
+      ...followedPlaylistItems,
+      ...followedAlbumItems,
+      ...followedArtistItems,
+    ];
+  }, [favorites, followedPlaylists, followedAlbums, followedArtists]);
 
   const albumsDisplay = useMemo<LibraryItem[]>(() => {
-    if (albums.length > 0) {
-      return albums.map((album, idx) => ({
+    if (followedAlbums.length > 0) {
+      return followedAlbums.map((album, idx) => ({
         id: album._id,
         title: album.name,
         subtitle: `Album • ${album.artist}`,
@@ -249,21 +243,21 @@ export default function Library() {
         accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
       }));
     }
-    return albumItems;
-  }, [albums]);
+    return [];
+  }, [followedAlbums]);
 
   const playlistsDisplay = useMemo<LibraryItem[]>(() => {
-    if (playlists.length > 0) {
-      return playlists.map((playlist, idx) => ({
+    if (followedPlaylists.length > 0) {
+      return followedPlaylists.map((playlist, idx) => ({
         id: playlist._id,
         title: playlist.name,
-        subtitle: `Playlist • ${playlist.songs?.length || 0} songs`,
+        subtitle: `Playlist • ${playlist.songs?.length || 0} bài hát`,
         image: playlist.cover || getDemoImage(playlist.name),
         accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
       }));
     }
-    return playlistItems;
-  }, [playlists]);
+    return [];
+  }, [followedPlaylists]);
 
   const artistsDisplay = useMemo<LibraryItem[]>(() => {
     return followedArtists.map((artist, idx) => ({
@@ -282,42 +276,45 @@ export default function Library() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.header}>Your Library</Text>
-          <View style={styles.headerAction}>
-            {activeTab === "Playlists" ? (
-              <Pressable onPress={() => router.push("/add-playlist")} hitSlop={8}>
-                <Text style={styles.headerActionText}>+</Text>
-              </Pressable>
-            ) : null}
-          </View>
+          <View style={styles.headerAction} />
         </View>
 
         <View style={styles.tabsRow}>
-          {tabs.map((tab) => (
-            <TabChip key={tab} label={tab} active={tab === activeTab} onPress={() => setActiveTab(tab)} />
-          ))}
+          {tabs.map((tab) => {
+            let tabLabel = tab;
+            if (tab === "all") tabLabel = "All";
+            return (
+              <TabChip 
+                key={tab} 
+                label={tabLabel} 
+                active={tab === activeTab} 
+                onPress={() => setActiveTab((prev) => (prev === tab ? "all" : tab))} 
+              />
+            );
+          })}
         </View>
 
         {activeTab === "Albums" ? (
           <>
             {albumsLoading ? (
               <Text style={styles.loadingText}>Loading albums...</Text>
-            ) : albums.length === 0 ? (
-              <Text style={styles.emptyText}>No albums found</Text>
+            ) : followedAlbums.length === 0 ? (
+              <Text style={styles.emptyText}>Bạn chưa lưu album nào</Text>
             ) : (
               <GridSection
                 label="Albums"
                 hero={{
-                  title: albums[0]?.name || "Albums",
-                  subtitle: albums[0]?.artist || "Various Artists",
+                  title: followedAlbums[0]?.name || "Albums",
+                  subtitle: followedAlbums[0]?.artist || "Various Artists",
                   accent: "#450AF5",
                   titleStyle: styles.albumHeroTitle,
                   subtitleStyle: styles.albumHeroSubtitle,
                   playStyle: styles.albumHeroPlay as any,
                 }}
                 items={albumsDisplay.slice(1)}
-                discoverLabel="Find albums to listen to"
+                discoverLabel="Lưu thêm album để hiện tại đây"
                 showDiscoverPlus={false}
-                heroId={albums[0]?._id}
+                heroId={followedAlbums[0]?._id}
                 onItemPress={(id) => router.push(`/album/${id}`)}
               />
             )}
@@ -326,23 +323,23 @@ export default function Library() {
           <>
             {playlistsLoading ? (
               <Text style={styles.loadingText}>Loading playlists...</Text>
-            ) : playlists.length === 0 ? (
-              <Text style={styles.emptyText}>No playlists yet. Create one to get started!</Text>
+            ) : followedPlaylists.length === 0 ? (
+              <Text style={styles.emptyText}>Chưa có playlist nào trong thư viện</Text>
             ) : (
               <GridSection
-                label="Your Playlists"
+                label="Followed Playlists"
                 hero={{
-                  title: playlists[0]?.name || "Playlists",
-                  subtitle: `${playlists[0]?.songs?.length || 0} songs`,
-                  badge: "YOUR PLAYLIST",
+                  title: followedPlaylists[0]?.name || "Playlists",
+                  subtitle: `${followedPlaylists[0]?.songs?.length || 0} bài hát`,
+                  badge: "FOLLOWED",
                   accent: "#450AF5",
                   titleStyle: styles.playlistHeroTitle,
                   subtitleStyle: styles.playlistHeroSubtitle,
                   playStyle: styles.playlistHeroPlay as any,
                 }}
                 items={playlistsDisplay.slice(1)}
-                discoverLabel="Create or find playlists"
-                heroId={playlists[0]?._id}
+                discoverLabel="Theo dõi thêm playlist để hiện tại đây"
+                heroId={followedPlaylists[0]?._id}
                 onItemPress={(id) => router.push(`/playlist/${id}`)}
               />
             )}
@@ -385,20 +382,23 @@ export default function Library() {
           </>
         ) :(
           <>
-            <SectionHeader label="Recents" />
-            {homeItems.map((item) => (
-              <ListRow
-                key={item.id}
-                item={item}
-                onPress={
-                  item.id === "liked-songs"
-                    ? () => navigation.navigate("my-playlist" as never)
-                    : item.artistName
-                    ? () => router.push(`/artist/${encodeURIComponent(item.artistName!)}` as any)
-                    : undefined
-                }
-              />
-            ))}
+            <SectionHeader label="Collection" />
+            {homeItems.length === 1 ? (
+              <Text style={styles.emptyText}>Hãy theo dõi album, artist hoặc playlist để hiển thị tại đây</Text>
+            ) : null}
+            {homeItems.map((item) => {
+              let onPress: (() => void) | undefined;
+              if (item.itemType === "liked") {
+                onPress = () => navigation.navigate("my-playlist" as never);
+              } else if (item.itemType === "artist" && item.artistName) {
+                onPress = () => router.push(`/artist/${encodeURIComponent(item.artistName)}` as any);
+              } else if (item.itemType === "playlist" && item.entityId) {
+                onPress = () => router.push(`/playlist/${item.entityId}` as any);
+              } else if (item.itemType === "album" && item.entityId) {
+                onPress = () => router.push(`/album/${item.entityId}` as any);
+              }
+              return <ListRow key={item.id} item={item} onPress={onPress} />;
+            })}
           </>
         )}
       </ScrollView>

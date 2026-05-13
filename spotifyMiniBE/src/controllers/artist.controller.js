@@ -68,7 +68,11 @@ const followArtist = async (req, res) => {
     const artist = await Artist.findById(artistId);
     if (!artist) return res.status(404).json({ message: 'Artist not found' });
 
-    if (!user.followedArtists.includes(artistId)) {
+    if (artist.userId && artist.userId.toString() === userId.toString()) {
+      return res.status(400).json({ message: 'You cannot follow yourself' });
+    }
+
+    if (!user.followedArtists.some((id) => id.toString() === artistId)) {
       user.followedArtists.push(artistId);
       await user.save();
     }
@@ -108,16 +112,16 @@ const isFollowing = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const following = user.followedArtists.includes(artistId);
+    const following = user.followedArtists.some((id) => id.toString() === artistId);
     res.json({ following });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-module.exports = { 
-  getArtists, 
-  getArtistById, 
+module.exports = {
+  getArtists,
+  getArtistById,
   getArtistByName,
   getSongsByArtist,
   createArtist,

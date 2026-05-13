@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
   Image, Pressable, StyleSheet, Text,
-  TouchableOpacity, View, Modal, Alert, ScrollView
+  TouchableOpacity, View, Modal, Alert, ScrollView, PanResponder, type LayoutChangeEvent
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePlayer } from "../context/PlayerContext";
@@ -21,10 +21,13 @@ export default function PlayerScreen() {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
   const [playlistSelectVisible, setPlaylistSelectVisible] = useState(false);
+  const [progressWidth, setProgressWidth] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPreviewMillis, setSeekPreviewMillis] = useState(0);
   const {
     currentSong, isPlaying, togglePlayPause,
     positionMillis, durationMillis, playNext,
-    playPrevious, hasNext, hasPrevious
+    playPrevious, hasNext, hasPrevious, seekTo
   } = usePlayer();
 
   const { isFavorite, toggleFavorite } = useFavorite(); 
@@ -77,8 +80,46 @@ export default function PlayerScreen() {
     );
   }
 
+  const displayedPosition = isSeeking ? seekPreviewMillis : positionMillis;
   const progressRatio = durationMillis > 0
-    ? Math.min(1, positionMillis / durationMillis) : 0;
+    ? Math.min(1, displayedPosition / durationMillis) : 0;
+
+  const updateSeekPreviewByX = (x: number) => {
+    if (!progressWidth || durationMillis <= 0) return;
+    const clampedX = Math.max(0, Math.min(x, progressWidth));
+    const ratio = clampedX / progressWidth;
+    setSeekPreviewMillis(Math.floor(ratio * durationMillis));
+  };
+
+  const commitSeekByX = async (x: number) => {
+    if (!progressWidth || durationMillis <= 0) return;
+    const clampedX = Math.max(0, Math.min(x, progressWidth));
+    const ratio = clampedX / progressWidth;
+    await seekTo(Math.floor(ratio * durationMillis));
+  };
+
+  const onProgressLayout = (event: LayoutChangeEvent) => {
+    setProgressWidth(event.nativeEvent.layout.width);
+  };
+
+  const progressResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (event) => {
+      setIsSeeking(true);
+      updateSeekPreviewByX(event.nativeEvent.locationX);
+    },
+    onPanResponderMove: (event) => {
+      updateSeekPreviewByX(event.nativeEvent.locationX);
+    },
+    onPanResponderRelease: async (event) => {
+      await commitSeekByX(event.nativeEvent.locationX);
+      setIsSeeking(false);
+    },
+    onPanResponderTerminate: () => {
+      setIsSeeking(false);
+    },
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -185,11 +226,16 @@ export default function PlayerScreen() {
       </View>
 
       <View style={styles.progressBlock}>
-        <View style={styles.progressTrack}>
+        <View
+          style={styles.progressTrack}
+          onLayout={onProgressLayout}
+          {...progressResponder.panHandlers}
+        >
           <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
+          <View style={[styles.progressThumb, { left: `${progressRatio * 100}%` }]} />
         </View>
         <View style={styles.timeRow}>
-          <Text style={styles.timeText}>{formatTime(positionMillis)}</Text>
+          <Text style={styles.timeText}>{formatTime(displayedPosition)}</Text>
           <Text style={styles.timeText}>{formatTime(durationMillis)}</Text>
         </View>
       </View>
@@ -221,7 +267,17 @@ const styles = StyleSheet.create({
   title: { color: "white", fontSize: 31, fontWeight: "800" },
   artist: { color: "#B7B7B7", marginTop: 4, fontSize: 17 },
   progressBlock: { marginTop: 26 },
-  progressTrack: { height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
+  progressTrack: { height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)", overflow: "visible" },
+  progressThumb: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -4,
+    marginLeft: -7,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#53E076",
+  },
   progressFill: { height: "100%", borderRadius: 999, backgroundColor: "#53E076" },
   timeRow: { marginTop: 10, flexDirection: "row", justifyContent: "space-between" },
   timeText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 12 },
