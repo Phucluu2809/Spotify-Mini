@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { usePlayer } from "../context/PlayerContext";
 import { useFavorite } from "../context/FavoriteContext";
 import { usePlaylist } from "../context/PlaylistContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 function formatTime(ms: number) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -24,6 +24,7 @@ export default function PlayerScreen() {
   const [progressWidth, setProgressWidth] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPreviewMillis, setSeekPreviewMillis] = useState(0);
+  const seekStartXRef = useRef(0);
   const {
     currentSong, isPlaying, togglePlayPause,
     positionMillis, durationMillis, playNext,
@@ -84,42 +85,46 @@ export default function PlayerScreen() {
   const progressRatio = durationMillis > 0
     ? Math.min(1, displayedPosition / durationMillis) : 0;
 
-  const updateSeekPreviewByX = (x: number) => {
+  const updateSeekPreviewByX = useCallback((x: number) => {
     if (!progressWidth || durationMillis <= 0) return;
     const clampedX = Math.max(0, Math.min(x, progressWidth));
     const ratio = clampedX / progressWidth;
     setSeekPreviewMillis(Math.floor(ratio * durationMillis));
-  };
+  }, [progressWidth, durationMillis]);
 
-  const commitSeekByX = async (x: number) => {
+  const commitSeekByX = useCallback(async (x: number) => {
     if (!progressWidth || durationMillis <= 0) return;
     const clampedX = Math.max(0, Math.min(x, progressWidth));
     const ratio = clampedX / progressWidth;
     await seekTo(Math.floor(ratio * durationMillis));
-  };
+  }, [progressWidth, durationMillis, seekTo]);
 
   const onProgressLayout = (event: LayoutChangeEvent) => {
     setProgressWidth(event.nativeEvent.layout.width);
   };
 
-  const progressResponder = PanResponder.create({
+  const progressResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (event) => {
       setIsSeeking(true);
-      updateSeekPreviewByX(event.nativeEvent.locationX);
+      const startX = Math.max(0, Math.min(event.nativeEvent.locationX, progressWidth));
+      seekStartXRef.current = startX;
+      updateSeekPreviewByX(startX);
     },
-    onPanResponderMove: (event) => {
-      updateSeekPreviewByX(event.nativeEvent.locationX);
+    onPanResponderMove: (_, gestureState) => {
+      const dragX = seekStartXRef.current + gestureState.dx;
+      updateSeekPreviewByX(dragX);
     },
-    onPanResponderRelease: async (event) => {
-      await commitSeekByX(event.nativeEvent.locationX);
+    onPanResponderRelease: async (_, gestureState) => {
+      const dragX = seekStartXRef.current + gestureState.dx;
+      await commitSeekByX(dragX);
       setIsSeeking(false);
     },
     onPanResponderTerminate: () => {
       setIsSeeking(false);
     },
-  });
+  }), [progressWidth, updateSeekPreviewByX, commitSeekByX]);
 
   return (
     <SafeAreaView style={styles.container}>

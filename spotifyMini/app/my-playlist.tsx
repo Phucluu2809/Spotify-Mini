@@ -28,6 +28,20 @@ export default function MyPlaylistScreen() {
     }
   };
 
+  const handlePlayAll = () => {
+    if (!favorites.length) return;
+    const isCollectionActive = Boolean(
+      currentSong && favorites.some((song: any) => song._id === currentSong._id)
+    );
+
+    if (isCollectionActive) {
+      if (!isPlaying) togglePlayPause();
+      return;
+    }
+
+    playSong(favorites[0], favorites);
+  };
+
   const renderSong = ({ item }: { item: any }) => {
     const isCurrentSong = currentSong?._id === item._id;
     const liked = isFavorite(item._id);
@@ -92,7 +106,7 @@ export default function MyPlaylistScreen() {
 
       {/* ✅ Nút phát tất cả */}
       {favorites.length > 0 && (
-        <Pressable style={styles.playAllButton} onPress={() => playSong(favorites[0], favorites)}>
+        <Pressable style={styles.playAllButton} onPress={handlePlayAll}>
           <Ionicons name="play" size={20} color="#0B0F0D" />
           <Text style={styles.playAllText}>Phát tất cả</Text>
         </Pressable>

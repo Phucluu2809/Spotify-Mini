@@ -18,6 +18,7 @@ type PlayerContextType = {
   playSong: (song: Song, queue?: Song[]) => Promise<void>;
   togglePlayPause: () => Promise<void>;
   seekTo: (nextPositionMillis: number) => Promise<void>;
+  setSeeking: (seeking: boolean) => void;
   isPlaying: boolean; positionMillis: number; durationMillis: number;
   playNext: () => Promise<void>; playPrevious: () => Promise<void>;
   hasNext: boolean; hasPrevious: boolean;
@@ -51,11 +52,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [durationMillis, setDurationMillis] = useState(0);
   const [songQueue, setSongQueue] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
+  const [isSeeking, setIsSeeking] = useState(false);
   const queueRef = useRef<Song[]>([]);
   const indexRef = useRef(-1);
+  const seekingRef = useRef(false);
 
   useEffect(() => { queueRef.current = songQueue; }, [songQueue]);
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { seekingRef.current = isSeeking; }, [isSeeking]);
   useEffect(() => {
     Audio.setAudioModeAsync({ staysActiveInBackground: true, shouldDuckAndroid: false, playsInSilentModeIOS: true });
   }, []);
@@ -63,7 +67,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
-    setPositionMillis(status.positionMillis ?? 0);
+    if (!seekingRef.current) {
+      setPositionMillis(status.positionMillis ?? 0);
+    }
     setDurationMillis(status.durationMillis ?? 0);
     setIsPlaying(status.isPlaying);
     if (status.didJustFinish) {
@@ -75,11 +81,28 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const isSameQueue = (a: Song[], b: Song[]) => {
+    if (a.length !== b.length) return false;
+    return a.every((song, index) => song._id === b[index]?._id);
+  };
+
   const playSong = async (song: Song, queue?: Song[]) => {
     try {
       const nextQueue = queue?.length ? queue : songQueue.length ? songQueue : [song];
       const foundIndex = nextQueue.findIndex((i) => i._id === song._id);
       const nextIndex = foundIndex >= 0 ? foundIndex : 0;
+
+      if (currentSong?._id === song._id && sound) {
+        if (!isSameQueue(queueRef.current, nextQueue)) {
+          setSongQueue(nextQueue);
+          setCurrentIndex(nextIndex);
+        }
+        if (!isPlaying) {
+          await sound.playAsync();
+        }
+        return;
+      }
+
       setSongQueue(nextQueue);
       setCurrentIndex(nextIndex);
       if (sound) { await sound.stopAsync(); await sound.unloadAsync(); }
@@ -115,7 +138,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <PlayerContext.Provider value={{
-      currentSong, playSong, togglePlayPause, seekTo, isPlaying,
+      currentSong, playSong, togglePlayPause, seekTo, setSeeking: setIsSeeking, isPlaying,
       positionMillis, durationMillis, playNext, playPrevious,
       hasNext: currentIndex >= 0 && currentIndex < songQueue.length - 1,
       hasPrevious: currentIndex > 0

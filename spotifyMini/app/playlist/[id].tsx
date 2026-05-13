@@ -52,7 +52,7 @@ export default function PlaylistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { currentSong, isPlaying, playSong } = usePlayer();
+  const { currentSong, isPlaying, playSong, togglePlayPause } = usePlayer();
   const {
     getPlaylistById,
     addSongToPlaylist,
@@ -69,6 +69,19 @@ export default function PlaylistScreen() {
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [loadingModal, setLoadingModal] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+
+  const handlePlayPlaylist = () => {
+    if (!playlist?.songs?.length) return;
+    const queue = playlist.songs;
+    const isPlaylistActive = Boolean(currentSong && queue.some((song) => song._id === currentSong._id));
+
+    if (isPlaylistActive) {
+      if (!isPlaying) void togglePlayPause();
+      return;
+    }
+
+    void playSong(queue[0], queue);
+  };
 
   useEffect(() => {
     const fetchPlaylist = async () => {
@@ -184,9 +197,7 @@ export default function PlaylistScreen() {
           <>
             <Pressable
               style={styles.playCircle}
-              onPress={() =>
-                playlist?.songs?.[0] && playSong(playlist.songs[0], playlist.songs)
-              }
+              onPress={handlePlayPlaylist}
             >
               <Ionicons name="play" size={22} color="#0B0F0D" />
             </Pressable>

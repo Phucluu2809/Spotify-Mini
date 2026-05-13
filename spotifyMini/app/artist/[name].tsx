@@ -31,7 +31,7 @@ const formatDuration = (ms: number) => {
 export default function ArtistScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const router = useRouter();
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong, currentSong, isPlaying, togglePlayPause } = usePlayer();
   const { addFollowedArtist, removeFollowedArtist } = useArtist();
   const { user } = useAuth();
   const [artist, setArtist] = useState<Artist | null>(null);
@@ -127,6 +127,18 @@ export default function ArtistScreen() {
     }
   };
 
+  const handlePlayArtist = () => {
+    if (!songs.length) return;
+    const isArtistActive = Boolean(currentSong && songs.some((song) => song._id === currentSong._id));
+
+    if (isArtistActive) {
+      if (!isPlaying) void togglePlayPause();
+      return;
+    }
+
+    void playSong(songs[0], songs);
+  };
+
   const artistName = artist?.name || (name ? decodeURIComponent(name) : 'Artist');
   const coverImage = artist?.image || songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
   const isOwnArtistProfile = Boolean(user?.id && artist?.userId && user.id === artist.userId);
@@ -172,7 +184,7 @@ export default function ArtistScreen() {
             </View>
             {songs.length > 0 && (
               <View style={styles.buttonRow}>
-                <Pressable style={styles.playAllButton} onPress={() => playSong(songs[0], songs)}>
+                <Pressable style={styles.playAllButton} onPress={handlePlayArtist}>
                   <Ionicons name="play" size={20} color="#0B0F0D" />
                 </Pressable>
                 {!isOwnArtistProfile ? (

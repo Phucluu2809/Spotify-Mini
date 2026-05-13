@@ -42,7 +42,7 @@ const formatDuration = (ms: number) => {
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { currentSong, isPlaying, playSong } = usePlayer();
+  const { currentSong, isPlaying, playSong, togglePlayPause } = usePlayer();
   const { getAlbumById, followAlbum, unfollowAlbum, isAlbumFollowed } = useAlbum();
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +58,19 @@ export default function AlbumScreen() {
     };
     fetchAlbum();
   }, [id]);
+
+  const handlePlayAlbum = () => {
+    if (!album?.songs?.length) return;
+    const queue = album.songs;
+    const isAlbumActive = Boolean(currentSong && queue.some((song) => song._id === currentSong._id));
+
+    if (isAlbumActive) {
+      if (!isPlaying) void togglePlayPause();
+      return;
+    }
+
+    void playSong(queue[0], queue);
+  };
 
   const followed = Boolean(album?._id && isAlbumFollowed(album._id));
 
@@ -103,7 +116,7 @@ export default function AlbumScreen() {
               {(album?.songs?.length || 0) > 0 ? (
                 <Pressable
                   style={styles.playCircle}
-                  onPress={() => album?.songs?.[0] && playSong(album.songs[0], album.songs)}
+                  onPress={handlePlayAlbum}
                 >
                   <Ionicons name="play" size={22} color="#0B0F0D" />
                 </Pressable>
