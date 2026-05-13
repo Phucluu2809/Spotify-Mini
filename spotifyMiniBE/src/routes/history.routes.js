@@ -5,16 +5,22 @@ const {
   addHistory,
   getHistory,
   getRecentlyPlayed,
+  removeHistoryEntry,
+  removeRecentlyPlayedSong,
+  clearRecentlyPlayed,
   clearHistory,
-  getRecommendations   // thêm dòng này
+  getRecommendations
 } = require('../controllers/history.controller');
 
 router.use(requireAuth);
 
 router.post('/', addHistory);
 router.get('/', getHistory);
-router.get('/recommendations', getRecommendations);   // thêm trước recently-played
+router.get('/recommendations', getRecommendations);
 router.get('/recently-played', getRecentlyPlayed);
+router.delete('/recently-played/:songId', removeRecentlyPlayedSong);
+router.delete('/recently-played', clearRecentlyPlayed);
+router.delete('/:id', removeHistoryEntry);
 router.delete('/', clearHistory);
 
 module.exports = router;

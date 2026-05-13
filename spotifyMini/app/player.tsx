@@ -10,6 +10,8 @@ import { useFavorite } from "../context/FavoriteContext";
 import { usePlaylist } from "../context/PlaylistContext";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
+const TRACK_THUMB_SIZE = 16;
+
 function formatTime(ms: number) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -28,7 +30,7 @@ export default function PlayerScreen() {
   const {
     currentSong, isPlaying, togglePlayPause,
     positionMillis, durationMillis, playNext,
-    playPrevious, hasNext, hasPrevious, seekTo
+    playPrevious, hasNext, hasPrevious, seekTo, setSeeking
   } = usePlayer();
 
   const { isFavorite, toggleFavorite } = useFavorite(); 
@@ -70,17 +72,6 @@ export default function PlayerScreen() {
     Alert.alert("Bài hát yêu thích", liked ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích");
   };
 
-  if (!currentSong) {
-    return (
-      <SafeAreaView style={styles.emptyContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-down" size={28} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.emptyText}>Chưa có bài hát nào đang phát</Text>
-      </SafeAreaView>
-    );
-  }
-
   const displayedPosition = isSeeking ? seekPreviewMillis : positionMillis;
   const progressRatio = durationMillis > 0
     ? Math.min(1, displayedPosition / durationMillis) : 0;
@@ -108,6 +99,7 @@ export default function PlayerScreen() {
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (event) => {
       setIsSeeking(true);
+      setSeeking(true);
       const startX = Math.max(0, Math.min(event.nativeEvent.locationX, progressWidth));
       seekStartXRef.current = startX;
       updateSeekPreviewByX(startX);
@@ -118,13 +110,29 @@ export default function PlayerScreen() {
     },
     onPanResponderRelease: async (_, gestureState) => {
       const dragX = seekStartXRef.current + gestureState.dx;
-      await commitSeekByX(dragX);
-      setIsSeeking(false);
+      try {
+        await commitSeekByX(dragX);
+      } finally {
+        setIsSeeking(false);
+        setSeeking(false);
+      }
     },
     onPanResponderTerminate: () => {
       setIsSeeking(false);
+      setSeeking(false);
     },
-  }), [progressWidth, updateSeekPreviewByX, commitSeekByX]);
+  }), [progressWidth, setSeeking, updateSeekPreviewByX, commitSeekByX]);
+
+  if (!currentSong) {
+    return (
+      <SafeAreaView style={styles.emptyContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-down" size={28} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.emptyText}>Chưa có bài hát nào đang phát</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -149,7 +157,7 @@ export default function PlayerScreen() {
         >
           <View style={styles.menuContainer}>
             <Pressable onPress={handleAddToPlaylist} style={styles.menuItem}>
-              <Ionicons name="playlist-outline" size={22} color="#53E076" />
+              <Ionicons name="list-outline" size={22} color="#53E076" />
               <Text style={styles.menuItemText}>Thêm vào danh sách phát</Text>
             </Pressable>
             
@@ -232,11 +240,13 @@ export default function PlayerScreen() {
 
       <View style={styles.progressBlock}>
         <View
-          style={styles.progressTrack}
+          style={styles.progressTouchArea}
           onLayout={onProgressLayout}
           {...progressResponder.panHandlers}
         >
-          <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
+          </View>
           <View style={[styles.progressThumb, { left: `${progressRatio * 100}%` }]} />
         </View>
         <View style={styles.timeRow}>
@@ -272,15 +282,16 @@ const styles = StyleSheet.create({
   title: { color: "white", fontSize: 31, fontWeight: "800" },
   artist: { color: "#B7B7B7", marginTop: 4, fontSize: 17 },
   progressBlock: { marginTop: 26 },
-  progressTrack: { height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)", overflow: "visible" },
+  progressTouchArea: { height: 28, justifyContent: "center" },
+  progressTrack: { height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
   progressThumb: {
     position: "absolute",
     top: "50%",
-    marginTop: -4,
-    marginLeft: -7,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    marginTop: -TRACK_THUMB_SIZE / 2,
+    marginLeft: -TRACK_THUMB_SIZE / 2,
+    width: TRACK_THUMB_SIZE,
+    height: TRACK_THUMB_SIZE,
+    borderRadius: TRACK_THUMB_SIZE / 2,
     backgroundColor: "#53E076",
   },
   progressFill: { height: "100%", borderRadius: 999, backgroundColor: "#53E076" },

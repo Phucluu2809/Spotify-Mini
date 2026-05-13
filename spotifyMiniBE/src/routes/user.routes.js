@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const {
   getFollowedArtists,
   getUserProfile,
+  updateUserProfile,
   getFollowedPlaylists,
   followPlaylist,
   unfollowPlaylist,
@@ -15,6 +17,7 @@ const {
 
 // Get user profile
 router.get('/profile', auth, getUserProfile);
+router.patch('/profile', auth, upload.single('avatar'), updateUserProfile);
 
 // Get user's followed artists
 router.get('/followed-artists', auth, getFollowedArtists);

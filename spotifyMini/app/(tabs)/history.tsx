@@ -6,13 +6,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 const options = [
   {
     title: 'Listening History',
-    subtitle: 'Xem các bài đã nghe theo mốc thời gian',
+    subtitle: 'Every play ordered by time',
     route: '/(tabs)/listening-history',
     icon: 'time-outline' as const,
   },
   {
     title: 'Recently Played',
-    subtitle: 'Danh sách phát gần đây kèm mục nổi bật',
+    subtitle: 'Latest tracks without duplicates',
     route: '/(tabs)/recently-played',
     icon: 'albums-outline' as const,
   },
@@ -24,39 +24,32 @@ export default function HistoryEntryScreen() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-
       <View style={styles.header}>
         <Pressable style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#d8d8d8" />
+          <Ionicons name="arrow-back" size={22} color="#e5e7eb" />
         </Pressable>
-
         <Text style={styles.title}>History</Text>
-
         <View style={styles.iconButton} />
       </View>
-
-      <Text style={styles.description}>Chọn màn bạn muốn mở</Text>
 
       <View style={styles.stack}>
         {options.map((option) => (
           <Pressable
             key={option.title}
-            style={styles.card}
+            style={styles.row}
             android_ripple={{ color: '#1f1f1f' }}
             onPress={() => router.push(option.route)}
           >
-            <View style={styles.left}>
+            <View style={styles.leading}>
               <View style={styles.iconWrap}>
                 <Ionicons name={option.icon} size={20} color="#1fd05a" />
               </View>
-
               <View style={styles.textWrap}>
-                <Text style={styles.cardTitle}>{option.title}</Text>
-                <Text style={styles.cardSubtitle}>{option.subtitle}</Text>
+                <Text style={styles.rowTitle}>{option.title}</Text>
+                <Text style={styles.rowSubtitle}>{option.subtitle}</Text>
               </View>
             </View>
-
-            <Ionicons name="chevron-forward" size={20} color="#7a7a7a" />
+            <Ionicons name="chevron-forward" size={20} color="#707781" />
           </Pressable>
         ))}
       </View>
@@ -67,72 +60,65 @@ export default function HistoryEntryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0a0b0d',
-    paddingTop: 60,
-    paddingHorizontal: 22,
+    backgroundColor: '#090b0e',
+    paddingTop: 54,
+    paddingHorizontal: 18,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   iconButton: {
-    width: 28,
-    height: 28,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    color: '#f2f2f2',
-    fontSize: 34,
+    color: '#f1f5f9',
+    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  description: {
-    color: '#9fa3a8',
-    fontSize: 14,
-    marginBottom: 24,
   },
   stack: {
-    gap: 14,
+    gap: 10,
   },
-  card: {
-    minHeight: 96,
-    borderRadius: 22,
-    backgroundColor: '#15171a',
+  row: {
+    minHeight: 78,
+    borderRadius: 8,
+    backgroundColor: '#14171a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#25282d',
+    borderColor: '#22272e',
   },
-  left: {
+  leading: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
   iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 8,
     backgroundColor: '#1c2220',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textWrap: {
-    flexShrink: 1,
-  },
-  cardTitle: {
-    color: '#f2f2f2',
-    fontSize: 18,
-    fontWeight: '700',
+  textWrap: { flex: 1, minWidth: 0 },
+  rowTitle: {
+    color: '#f1f5f9',
+    fontSize: 17,
+    fontWeight: '800',
     marginBottom: 3,
   },
-  cardSubtitle: {
-    color: '#91969c',
+  rowSubtitle: {
+    color: '#8e949b',
     fontSize: 13,
   },
 });

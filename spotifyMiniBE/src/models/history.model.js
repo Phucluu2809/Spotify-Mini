@@ -21,4 +21,7 @@ const historySchema = new mongoose.Schema({
   }
 });
 
+historySchema.index({ userId: 1, playedAt: -1 });
+historySchema.index({ userId: 1, 'song.songId': 1, playedAt: -1 });
+
 module.exports = mongoose.model('History', historySchema);

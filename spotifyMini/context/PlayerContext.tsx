@@ -6,6 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import { API_URL } from "../app/config/api";
 
 const AUTH_TOKEN_KEY = "spotifymini.auth.token";
+const PLAYBACK_PROGRESS_INTERVAL_MS = 100;
 
 export type Song = {
   _id: string; title: string; artist: string;
@@ -106,10 +107,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       setSongQueue(nextQueue);
       setCurrentIndex(nextIndex);
       if (sound) { await sound.stopAsync(); await sound.unloadAsync(); }
-      const { sound: newSound, status } = await Audio.Sound.createAsync({ uri: song.audio }, { shouldPlay: true });
+      const { sound: newSound, status } = await Audio.Sound.createAsync(
+        { uri: song.audio },
+        { shouldPlay: true, progressUpdateIntervalMillis: PLAYBACK_PROGRESS_INTERVAL_MS }
+      );
       setSound(newSound); setCurrentSong(song);
       setIsPlaying(true); setPositionMillis(0);
       if (status.isLoaded) setDurationMillis(status.durationMillis ?? 0);
+      await newSound.setProgressUpdateIntervalAsync(PLAYBACK_PROGRESS_INTERVAL_MS);
       newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
       void logHistory(song);
     } catch (err) { console.log(err); }

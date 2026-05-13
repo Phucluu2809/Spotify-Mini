@@ -2,6 +2,21 @@ const User = require('../models/user.model');
 const Artist = require('../models/artist.model');
 const Playlist = require('../models/playlist.model');
 const Album = require('../models/album.model');
+const Song = require('../models/song.model');
+const cloudinary = require('../config/cloudinary');
+
+const serializeUser = (user) => ({
+  id: user._id,
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  avatar: user.avatar || '',
+  followedArtists: user.followedArtists,
+  followedPlaylists: user.followedPlaylists,
+  followedAlbums: user.followedAlbums,
+  createdAt: user.createdAt,
+});
 
 const getFollowedArtists = async (req, res) => {
   try {
@@ -32,12 +47,73 @@ const getUserProfile = async (req, res) => {
 
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const user = await User.findById(userId).select('_id name email role followers followedArtists followedPlaylists followedAlbums createdAt');
+    const user = await User.findById(userId).select('_id name email role avatar followedArtists followedPlaylists followedAlbums createdAt');
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    res.json(user);
+    res.json(serializeUser(user));
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const updateUserProfile = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const nextName = req.body.name?.trim();
+    if (!nextName) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+
+    const previousName = user.name;
+    if (user.role === 'artist' && previousName !== nextName) {
+      const existingArtist = await Artist.findOne({
+        name: nextName,
+        userId: { $ne: user._id },
+      });
+      if (existingArtist) {
+        return res.status(409).json({ message: 'Name is already in use' });
+      }
+    }
+
+    let nextAvatar = user.avatar || '';
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        resource_type: 'image',
+        folder: 'spotify-mini/avatars',
+      });
+      nextAvatar = result.secure_url;
+    }
+
+    user.name = nextName;
+    user.avatar = nextAvatar;
+    await user.save();
+
+    if (user.role === 'artist') {
+      const artist = await Artist.findOne({ userId: user._id });
+      if (artist) {
+        artist.name = nextName;
+        if (nextAvatar) artist.image = nextAvatar;
+        await artist.save();
+        await Promise.all([
+          Song.updateMany({ artistId: artist._id }, { artist: nextName }),
+          Album.updateMany({ artistId: artist._id }, { artist: nextName }),
+        ]);
+      } else if (previousName !== nextName) {
+        await Artist.updateOne({ name: previousName }, { name: nextName, image: nextAvatar });
+      }
+    }
+
+    res.json(serializeUser(user));
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'Name is already in use' });
+    }
     res.status(500).json({ message: err.message });
   }
 };
@@ -171,6 +247,7 @@ const unfollowAlbum = async (req, res) => {
 module.exports = {
   getFollowedArtists,
   getUserProfile,
+  updateUserProfile,
   getFollowedPlaylists,
   followPlaylist,
   unfollowPlaylist,

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 
 const profile = {
@@ -89,6 +89,13 @@ export default function SettingsScreen() {
   const groupsWithActions = settingsGroups.map((group) => ({
     ...group,
     items: group.items.map((item) => {
+      if (item.label === 'Personal Information') {
+        return {
+          ...item,
+          onPress: () => router.push('/personal-information'),
+        };
+      }
+
       if (item.label !== 'History') {
         return item;
       }
@@ -103,6 +110,13 @@ export default function SettingsScreen() {
   const displayName = user?.name ?? profile.name;
   const displayEmail = user?.email ?? profile.email;
   const displayRole = user?.role ?? profile.role;
+  const initials = displayName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'U';
 
   return (
     <View style={styles.screen}>
@@ -124,9 +138,13 @@ export default function SettingsScreen() {
 
         <View style={styles.profileBlock}>
           <View style={styles.avatarRing}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarInitials}>AJ</Text>
-            </View>
+            {user?.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              </View>
+            )}
 
             <View style={styles.editBadge}>
               <Ionicons name="pencil" size={11} color="#0b0b0b" />
@@ -222,6 +240,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffbb87',
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#1c2220',
   },
   avatarInitials: {
     color: '#2a2320',

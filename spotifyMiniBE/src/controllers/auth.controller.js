@@ -27,7 +27,7 @@ const register = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar || '' } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -48,7 +48,7 @@ const login = async (req, res) => {
     if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar || '' } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

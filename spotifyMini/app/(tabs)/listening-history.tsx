@@ -1,133 +1,264 @@
-import { useCallback, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import { API_URL } from '../config/api';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { usePlayer } from '../../context/PlayerContext';
+import {
+  clearListeningHistory,
+  deleteHistoryEntry,
+  getListeningHistory,
+  historyEntryToSong,
+  type HistoryEntry,
+} from '../../services/historyService';
 
-type HistoryEntry = {
-  _id: string;
-  song: {
-    songId: string; title: string; artist: string;
-    album: string; image: string; audio: string; duration: number;
-  };
-  playedAt: string;
-};
-
-const formatTime = (dateStr: string) => {
+const formatRelativeTime = (dateStr: string) => {
   const date = new Date(dateStr);
   const diff = Date.now() - date.getTime();
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-  if (minutes < 1) return 'Vừa xong';
-  if (minutes < 60) return `${minutes} phút trước`;
-  if (hours < 24) return `${hours} giờ trước`;
-  if (days === 1) return 'Hôm qua';
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  if (hours < 24) return `${hours} hr ago`;
+  if (days === 1) return 'Yesterday';
   return date.toLocaleDateString('vi-VN');
+};
+
+const getDayLabel = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 };
 
 export default function ListeningHistoryScreen() {
   const router = useRouter();
-  const { playSong } = usePlayer();
+  const { playSong, currentSong } = usePlayer();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
-  useFocusEffect(useCallback(() => { fetchHistory(); }, []));
+  const queue = useMemo(() => history.map(historyEntryToSong), [history]);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async (showInitialLoading = false) => {
     try {
-      setLoading(true);
-      const token = await SecureStore.getItemAsync('spotifymini.auth.token');
-      const res = await fetch(`${API_URL}/history`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setHistory(Array.isArray(data) ? data : []);
-    } catch (err) { console.log(err); }
-    finally { setLoading(false); }
-  };
+      if (showInitialLoading) setLoading(true);
+      setError('');
+      const data = await getListeningHistory(120);
+      setHistory(data);
+    } catch (err) {
+      console.log('Fetch listening history error:', err);
+      setError('Could not load listening history.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
-  const clearHistory = async () => {
-    try {
-      const token = await SecureStore.getItemAsync('spotifymini.auth.token');
-      await fetch(`${API_URL}/history`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setHistory([]);
-    } catch (err) { console.log(err); }
+  useFocusEffect(useCallback(() => {
+    void fetchHistory(true);
+  }, [fetchHistory]));
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    void fetchHistory();
   };
 
   const handlePlay = (entry: HistoryEntry) => {
-    playSong({
-      _id: entry.song.songId, title: entry.song.title,
-      artist: entry.song.artist, album: entry.song.album,
-      image: entry.song.image, audio: entry.song.audio,
-      duration: entry.song.duration
-    });
+    const song = historyEntryToSong(entry);
+    void playSong(song, queue.length ? queue : [song]);
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    try {
+      await deleteHistoryEntry(entryId);
+      setHistory((items) => items.filter((item) => item._id !== entryId));
+    } catch (err) {
+      console.log('Delete history entry error:', err);
+      Alert.alert('Could not delete', 'Please try again later.');
+    }
+  };
+
+  const confirmClear = () => {
+    if (history.length === 0) return;
+    Alert.alert(
+      'Clear Listening History',
+      'All listening history for this account will be deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearListeningHistory();
+              setHistory([]);
+            } catch (err) {
+              console.log('Clear history error:', err);
+              Alert.alert('Could not clear', 'Please try again later.');
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.headerIcon}>
-            <Ionicons name="arrow-back" size={22} color="#d8d8d8" />
-          </Pressable>
-          <Text style={styles.headerTitle}>History</Text>
-          <Pressable style={styles.headerIcon} onPress={clearHistory}>
-            <Text style={styles.clearText}>Clear</Text>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.replace('/(tabs)/history')} style={styles.iconButton}>
+          <Ionicons name="arrow-back" size={22} color="#e5e7eb" />
+        </Pressable>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Listening History</Text>
+          <Text style={styles.headerMeta}>{history.length} plays</Text>
+        </View>
+        <Pressable
+          style={[styles.iconButton, history.length === 0 && styles.iconButtonDisabled]}
+          onPress={confirmClear}
+          disabled={history.length === 0}
+        >
+          <Ionicons name="trash-outline" size={20} color={history.length ? '#1fd05a' : '#555'} />
+        </Pressable>
+      </View>
+
+      {loading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator color="#1fd05a" size="large" />
+        </View>
+      ) : error ? (
+        <View style={styles.centerState}>
+          <Ionicons name="alert-circle-outline" size={42} color="#8b949e" />
+          <Text style={styles.emptyTitle}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={() => fetchHistory(true)}>
+            <Text style={styles.retryText}>Try Again</Text>
           </Pressable>
         </View>
+      ) : (
+        <FlatList
+          data={history}
+          keyExtractor={(item) => item._id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={history.length ? styles.listContent : styles.emptyListContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#1fd05a" />
+          }
+          ListEmptyComponent={
+            <View style={styles.centerState}>
+              <Ionicons name="time-outline" size={44} color="#5d636b" />
+              <Text style={styles.emptyTitle}>No listening history</Text>
+              <Text style={styles.emptySubtitle}>Tracks you play will appear here.</Text>
+            </View>
+          }
+          renderItem={({ item, index }) => {
+            const previous = history[index - 1];
+            const showDay = !previous || getDayLabel(previous.playedAt) !== getDayLabel(item.playedAt);
+            const isActive = currentSong?._id === item.song.songId;
 
-        {loading ? (
-          <View style={styles.emptyWrap}>
-            <ActivityIndicator color="#1fd05a" size="large" />
-          </View>
-        ) : history.length === 0 ? (
-          <View style={styles.emptyWrap}>
-            <Ionicons name="time-outline" size={42} color="#5d636b" />
-            <Text style={styles.emptyTitle}>No listening history</Text>
-            <Text style={styles.emptySubtitle}>Your listened tracks will appear here.</Text>
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {history.map((entry) => (
-              <Pressable key={entry._id} style={styles.row} onPress={() => handlePlay(entry)}>
-                <Image source={{ uri: entry.song.image }} style={styles.image} />
-                <View style={styles.info}>
-                  <Text style={styles.title} numberOfLines={1}>{entry.song.title}</Text>
-                  <Text style={styles.artist} numberOfLines={1}>{entry.song.artist}</Text>
-                </View>
-                <Text style={styles.time}>{formatTime(entry.playedAt)}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+            return (
+              <View>
+                {showDay ? <Text style={styles.dayLabel}>{getDayLabel(item.playedAt)}</Text> : null}
+                <Pressable style={styles.row} onPress={() => handlePlay(item)}>
+                  <Image source={{ uri: item.song.image }} style={styles.image} />
+                  <View style={styles.info}>
+                    <Text style={[styles.title, isActive && styles.titleActive]} numberOfLines={1}>
+                      {item.song.title}
+                    </Text>
+                    <Text style={styles.artist} numberOfLines={1}>
+                      {item.song.artist}
+                    </Text>
+                  </View>
+                  <Text style={styles.time}>{formatRelativeTime(item.playedAt)}</Text>
+                  <Pressable
+                    style={styles.rowAction}
+                    onPress={() => handleDeleteEntry(item._id)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={18} color="#6f757c" />
+                  </Pressable>
+                </Pressable>
+              </View>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#090b0e' },
-  content: { paddingTop: 52, paddingHorizontal: 22, paddingBottom: 140 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
-  headerIcon: { width: 46, height: 34, justifyContent: 'center' },
-  headerTitle: { color: '#f1f1f1', fontSize: 34, fontWeight: '800' },
-  clearText: { color: '#1fd05a', fontSize: 16, fontWeight: '700', textAlign: 'right' },
-  emptyWrap: { marginTop: 80, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
-  emptyTitle: { marginTop: 14, color: '#e4e4e4', fontSize: 20, fontWeight: '700' },
-  emptySubtitle: { marginTop: 6, color: '#8e949b', fontSize: 14 },
-  list: { gap: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderRadius: 12, paddingHorizontal: 4 },
-  image: { width: 52, height: 52, borderRadius: 10, marginRight: 14, backgroundColor: '#1c2220' },
-  info: { flex: 1 },
-  title: { color: '#f1f1f1', fontSize: 15, fontWeight: '600', marginBottom: 3 },
+  header: {
+    paddingTop: 54,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  iconButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  iconButtonDisabled: { opacity: 0.5 },
+  headerText: { alignItems: 'center', flex: 1 },
+  headerTitle: { color: '#f1f5f9', fontSize: 28, fontWeight: '800' },
+  headerMeta: { color: '#7a8087', fontSize: 12, marginTop: 2 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 148 },
+  emptyListContent: { flexGrow: 1 },
+  dayLabel: {
+    color: '#8e949b',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 18,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+    textTransform: 'capitalize',
+  },
+  row: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+  },
+  image: { width: 52, height: 52, borderRadius: 8, marginRight: 12, backgroundColor: '#1c2220' },
+  info: { flex: 1, minWidth: 0 },
+  title: { color: '#f1f5f9', fontSize: 15, fontWeight: '700', marginBottom: 3 },
+  titleActive: { color: '#1fd05a' },
   artist: { color: '#7a7f84', fontSize: 13 },
-  time: { color: '#4a4f55', fontSize: 12, marginLeft: 8, flexShrink: 0 }
+  time: { color: '#666d75', fontSize: 12, marginLeft: 8, maxWidth: 88, textAlign: 'right' },
+  rowAction: { width: 28, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  emptyTitle: { marginTop: 14, color: '#e4e4e4', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  emptySubtitle: { marginTop: 6, color: '#8e949b', fontSize: 14, textAlign: 'center' },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#1fd05a',
+  },
+  retryText: { color: '#061008', fontSize: 14, fontWeight: '800' },
 });
