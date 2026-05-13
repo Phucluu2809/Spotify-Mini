@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FlatList, Image, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
+import { useArtist } from '../../context/ArtistContext';
+import * as SecureStore from 'expo-secure-store';
 
 type Song = {
   _id: string; title: string; artist: string;
@@ -29,9 +31,13 @@ export default function ArtistScreen() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const router = useRouter();
   const { playSong, currentSong, isPlaying } = usePlayer();
+  const { addFollowedArtist, removeFollowedArtist } = useArtist();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [artistId, setArtistId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchArtistData();
@@ -50,10 +56,14 @@ export default function ArtistScreen() {
       // Fetch artist by name
       const artistRes = await API.get(`/artists/name/${artistName}`);
       setArtist(artistRes.data);
+      setArtistId(artistRes.data._id);
 
       // Fetch songs for this artist
       const songsRes = await API.get(`/artists/${artistRes.data._id}/songs`);
       setSongs(songsRes.data || []);
+
+      // Check if following
+      await checkFollowStatus(artistRes.data._id);
     } catch (err) {
       console.log('Error fetching artist:', err);
       try {
@@ -80,6 +90,38 @@ export default function ArtistScreen() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkFollowStatus = async (artId: string) => {
+    try {
+      const res = await API.get(`/artists/${artId}/is-following`);
+      setIsFollowing(res.data.following);
+    } catch (err) {
+      console.log('Error checking follow status:', err);
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!artistId || !artist) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await API.delete(`/artists/${artistId}/follow`);
+        setIsFollowing(false);
+        removeFollowedArtist(artistId);
+        Alert.alert('Đã bỏ theo dõi', `Bạn không còn theo dõi ${artist?.name}`);
+      } else {
+        await API.post(`/artists/${artistId}/follow`, {});
+        setIsFollowing(true);
+        addFollowedArtist(artist);
+        Alert.alert('Đã theo dõi', `Bạn đang theo dõi ${artist?.name}`);
+      }
+    } catch (err) {
+      console.log('Error toggling follow:', err);
+      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái theo dõi');
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -126,10 +168,28 @@ export default function ArtistScreen() {
               </View>
             </View>
             {songs.length > 0 && (
-              <Pressable style={styles.playAllButton} onPress={() => playSong(songs[0], songs)}>
-                <Ionicons name="play" size={20} color="#0B0F0D" />
-                <Text style={styles.playAllText}>Phát tất cả</Text>
-              </Pressable>
+              <View style={styles.buttonRow}>
+                <Pressable style={styles.playAllButton} onPress={() => playSong(songs[0], songs)}>
+                  <Ionicons name="play" size={20} color="#0B0F0D" />
+                  <Text style={styles.playAllText}>Phát tất cả</Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                  onPress={handleFollowToggle}
+                  disabled={followLoading}
+                >
+                  {followLoading ? (
+                    <ActivityIndicator size="small" color={isFollowing ? '#0B0F0D' : '#999'} />
+                  ) : (
+                    <>
+                      <Ionicons name={isFollowing ? 'checkmark' : 'add'} size={20} color={isFollowing ? '#0B0F0D' : '#999'} />
+                      <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
+                        {isFollowing ? 'Đã theo' : 'Theo dõi'}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
             )}
             <Text style={styles.sectionLabel}>BÀI HÁT</Text>
           </>
@@ -185,6 +245,25 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, height: 50, borderRadius: 25, backgroundColor: '#53E076', marginBottom: 24
   },
   playAllText: { color: '#0B0F0D', fontSize: 16, fontWeight: '800' },
+  buttonRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 24 },
+  followButton: { 
+    flex: 1,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 8,
+    height: 50, 
+    borderRadius: 25, 
+    borderWidth: 1.5,
+    borderColor: '#333',
+    backgroundColor: 'transparent'
+  },
+  followButtonActive: {
+    backgroundColor: '#53E076',
+    borderColor: '#53E076'
+  },
+  followButtonText: { color: '#999', fontSize: 16, fontWeight: '800' },
+  followButtonTextActive: { color: '#0B0F0D' },
   sectionLabel: { color: '#6B7280', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, paddingHorizontal: 20, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderRadius: 12, marginHorizontal: 8, marginBottom: 2 },
   rowActive: { backgroundColor: 'rgba(83,224,118,0.08)' },

@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 import { FavoriteProvider } from "../context/FavoriteContext";
 import { PlaylistProvider } from "../context/PlaylistContext";
 import { AlbumProvider } from "../context/AlbumContext";
+import { ArtistProvider } from "../context/ArtistContext";
 
 function RootNavigator() {
   const { token, isReady } = useAuth();
@@ -35,7 +36,9 @@ export default function RootLayout() {
         <FavoriteProvider>
           <PlaylistProvider>
             <AlbumProvider>
-              <RootNavigator />
+              <ArtistProvider>
+                <RootNavigator />
+              </ArtistProvider>
             </AlbumProvider>
           </PlaylistProvider>
         </FavoriteProvider>

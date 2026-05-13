@@ -1,5 +1,6 @@
 const Artist = require('../models/artist.model');
 const Song = require('../models/song.model');
+const User = require('../models/user.model');
 
 const getArtists = async (req, res) => {
   try {
@@ -54,10 +55,73 @@ const createArtist = async (req, res) => {
   }
 };
 
+const followArtist = async (req, res) => {
+  try {
+    const { artistId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const artist = await Artist.findById(artistId);
+    if (!artist) return res.status(404).json({ message: 'Artist not found' });
+
+    if (!user.followedArtists.includes(artistId)) {
+      user.followedArtists.push(artistId);
+      await user.save();
+    }
+
+    res.json({ message: 'Artist followed', followedArtists: user.followedArtists });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const unfollowArtist = async (req, res) => {
+  try {
+    const { artistId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.followedArtists = user.followedArtists.filter(id => id.toString() !== artistId);
+    await user.save();
+
+    res.json({ message: 'Artist unfollowed', followedArtists: user.followedArtists });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const isFollowing = async (req, res) => {
+  try {
+    const { artistId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const following = user.followedArtists.includes(artistId);
+    res.json({ following });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = { 
   getArtists, 
   getArtistById, 
   getArtistByName,
   getSongsByArtist,
-  createArtist 
+  createArtist,
+  followArtist,
+  unfollowArtist,
+  isFollowing
 };

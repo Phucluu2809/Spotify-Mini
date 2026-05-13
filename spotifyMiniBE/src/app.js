@@ -10,6 +10,7 @@ const favoritesRoutes = require('./routes/favorites.routes');
 const artistRoutes = require('./routes/artist.routes');
 const playlistRoutes = require('./routes/playlist.routes');
 const albumRoutes = require('./routes/album.routes');
+const userRoutes = require('./routes/user.routes');
 
 const app = express();
 connectDB();
@@ -24,6 +25,8 @@ app.use('/favorites', favoritesRoutes);
 app.use('/artists', artistRoutes);
 app.use('/playlists', playlistRoutes);
 app.use('/albums', albumRoutes);
+app.use('/user', userRoutes);
+
 app.get('/', (req, res) => res.send('Spotify Mini API running'));
 
 const PORT = process.env.PORT || 5000;

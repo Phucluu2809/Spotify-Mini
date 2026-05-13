@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { API } from "../../services/api";
 import { usePlaylist } from "../../context/PlaylistContext";
 import { useAlbum } from "../../context/AlbumContext";
+import { useArtist } from "../../context/ArtistContext";
 
 type LibrarySection = "home" | "Albums" | "Playlists" | "Artists";
 
@@ -193,12 +194,12 @@ function GridSection({
 
 export default function Library() {
   const [songs, setSongs] = useState<any[]>([]);
-  const [artists, setArtists] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<LibrarySection>("home");
   const navigation = useNavigation();
   const router = useRouter();
   const { playlists, loading: playlistsLoading } = usePlaylist();
   const { albums, loading: albumsLoading } = useAlbum();
+  const { followedArtists, loading: artistsLoading } = useArtist();
 
   useFocusEffect(useCallback(() => { setActiveTab("home"); }, []));
 
@@ -218,19 +219,6 @@ export default function Library() {
       }
     };
     fetchSongs();
-  }, []);
-
-  useEffect(() => {
-    const fetchArtists = async () => {
-      try {
-        const res = await API.get("/artists");
-        setArtists(res.data || []);
-      } catch (error) {
-        console.log("Error fetching artists:", error);
-        setArtists([]);
-      }
-    };
-    fetchArtists();
   }, []);
 
   const homeItems = useMemo<LibraryItem[]>(() => {
@@ -278,41 +266,16 @@ export default function Library() {
   }, [playlists]);
 
   const artistsDisplay = useMemo<LibraryItem[]>(() => {
-    if (artists.length > 0) {
-      return artists.map((artist, idx) => {
-        const songCount = artist.songs?.length || 0;
-        return {
-          id: artist._id,
-          title: artist.name,
-          subtitle: `Artist • ${artist.followers ? `${artist.followers.toLocaleString()} followers • ` : ""}${songCount} bài hát`,
-          image: artist.image || getDemoImage(artist.name),
-          accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
-          featured: idx === 0,
-          artistName: artist.name,
-        };
-      });
-    }
-
-    const grouped = songs.reduce((acc, song) => {
-      if (!song?.artist) return acc;
-      const current = acc.get(song.artist) ?? { count: 0, image: song.image };
-      acc.set(song.artist, {
-        count: current.count + 1,
-        image: current.image || song.image,
-      });
-      return acc;
-    }, new Map<string, { count: number; image?: string }>());
-
-    return Array.from(grouped.entries()).map(([artistName, meta], idx) => ({
-      id: `artist-${artistName}`,
-      title: artistName,
-      subtitle: `Artist • ${meta.count} bài hát`,
-      image: meta.image || getDemoImage(artistName),
+    return followedArtists.map((artist, idx) => ({
+      id: artist._id,
+      title: artist.name,
+      subtitle: `Artist • ${artist.followers ? `${artist.followers.toLocaleString()} followers • ` : ""}${artist.songs?.length || 0} bài hát`,
+      image: artist.image || getDemoImage(artist.name),
       accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
       featured: idx === 0,
-      artistName,
+      artistName: artist.name,
     }));
-  }, [artists, songs]);
+  }, [followedArtists]);
 
   return (
     <View style={styles.screen}>
@@ -386,24 +349,41 @@ export default function Library() {
           </>
         ) : activeTab === "Artists" ? (
           <>
-            <SectionHeader label="Recently added" />
-            <View style={styles.artistStack}>
-              {artistsDisplay.map((item) => (
-                <ArtistRow
-                  key={item.id}
-                  item={item}
-                  onPress={() =>
-                    item.artistName &&
-                    router.push(`/artist/${encodeURIComponent(item.artistName)}` as any)
-                  }
-                />
-              ))}
-            </View>
-            <View style={styles.discoverCard}>
-              <Text style={styles.discoverText}>Find more artists to follow</Text>
-            </View>
+            {artistsLoading ? (
+              <Text style={styles.loadingText}>Loading followed artists...</Text>
+            ) : artistsDisplay.length === 0 ? (
+              <View style={styles.emptyArtistsContainer}>
+                <Text style={styles.emptyArtistsTitle}>Chưa theo dõi artist nào</Text>
+                <Text style={styles.emptyArtistsText}>Khám phá các artist yêu thích của bạn</Text>
+                <Pressable 
+                  style={styles.discoverButton}
+                  onPress={() => {
+                    // TODO: Navigate to artist discovery page
+                    router.push("/(tabs)/explore" as any);
+                  }}
+                >
+                  <Text style={styles.discoverButtonText}>Khám phá</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <SectionHeader label="Theo dõi" />
+                <View style={styles.artistStack}>
+                  {artistsDisplay.map((item) => (
+                    <ArtistRow
+                      key={item.id}
+                      item={item}
+                      onPress={() =>
+                        item.artistName &&
+                        router.push(`/artist/${encodeURIComponent(item.artistName)}` as any)
+                      }
+                    />
+                  ))}
+                </View>
+              </>
+            )}
           </>
-        ) : (
+        ) :(
           <>
             <SectionHeader label="Recents" />
             {homeItems.map((item) => (
@@ -493,4 +473,9 @@ const styles = StyleSheet.create({
   artistMore: { width: 20, textAlign: "center", color: "#53E076", fontSize: 18, lineHeight: 18 },
   loadingText: { color: "#BCCBB9", fontSize: 14, textAlign: "center", marginTop: 20 },
   emptyText: { color: "#BCCBB9", fontSize: 14, textAlign: "center", marginTop: 20 },
+  emptyArtistsContainer: { alignItems: "center", justifyContent: "center", marginTop: 60, gap: 12 },
+  emptyArtistsTitle: { color: "#E5E2E1", fontSize: 18, fontWeight: "700" },
+  emptyArtistsText: { color: "#BCCBB9", fontSize: 14, textAlign: "center", paddingHorizontal: 20 },
+  discoverButton: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: "#53E076", borderRadius: 25, alignItems: "center", justifyContent: "center" },
+  discoverButtonText: { color: "#0B0F0D", fontSize: 14, fontWeight: "700" },
 });
