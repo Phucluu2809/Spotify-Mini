@@ -236,7 +236,9 @@ export default function Library() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.header}>Your Library</Text>
-          <View style={styles.headerAction} />
+          <Pressable style={styles.headerAction} onPress={() => router.push("/add-playlist")}>
+            <Ionicons name="add" size={20} color="#9CA3AF" />
+          </Pressable>
         </View>
 
         <View style={styles.tabsRow}>
