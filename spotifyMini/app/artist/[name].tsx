@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FlatList, Image, Pressable, StyleSheet, Text, View, ActivityIndicator, Alert } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
 import { useArtist } from '../../context/ArtistContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAlbum } from '../../context/AlbumContext';
 
 type Song = {
   _id: string; title: string; artist: string;
@@ -23,6 +24,15 @@ type Artist = {
   userId?: string;
 };
 
+type Album = {
+  _id: string;
+  name: string;
+  artist: string;
+  artistId?: string;
+  cover?: string;
+  songs?: Song[];
+};
+
 const formatDuration = (duration: number) => {
   const ms = duration > 0 && duration < 1000 ? duration * 1000 : duration;
   const total = Math.floor(ms / 1000);
@@ -35,6 +45,7 @@ export default function ArtistScreen() {
   const { playSong, currentSong, isPlaying, togglePlayPause } = usePlayer();
   const { addFollowedArtist, removeFollowedArtist } = useArtist();
   const { user } = useAuth();
+  const { albums } = useAlbum();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +155,14 @@ export default function ArtistScreen() {
   const coverImage = artist?.image || songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
   const isOwnArtistProfile = Boolean(user?.id && artist?.userId && user.id === artist.userId);
   const isArtistActive = Boolean(currentSong && songs.some((song) => song._id === currentSong._id));
+  const artistAlbums = (albums as Album[]).filter((album) => {
+    if (!artist) return false;
+    const byArtistId =
+      album.artistId && artist._id && String(album.artistId) === String(artist._id);
+    const byArtistName =
+      (album.artist || '').trim().toLowerCase() === artist.name.trim().toLowerCase();
+    return Boolean(byArtistId || byArtistName);
+  });
 
   if (loading) {
     return (
@@ -209,6 +228,35 @@ export default function ArtistScreen() {
                 ) : null}
               </View>
             )}
+            {artistAlbums.length > 0 ? (
+              <>
+                <Text style={styles.sectionLabel}>ALBUM</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.albumRail}
+                >
+                  {artistAlbums.map((album) => (
+                    <Pressable
+                      key={album._id}
+                      style={styles.albumCard}
+                      onPress={() => router.push(`/(tabs)/album/${album._id}` as any)}
+                    >
+                      <Image
+                        source={{
+                          uri: album.cover || songs[0]?.image || `https://picsum.photos/seed/${album._id}/300/300`
+                        }}
+                        style={styles.albumCover}
+                      />
+                      <Text style={styles.albumTitle} numberOfLines={1}>{album.name}</Text>
+                      <Text style={styles.albumMeta} numberOfLines={1}>
+                        {album.songs?.length || 0} bài hát
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
             <Text style={styles.sectionLabel}>BÀI HÁT</Text>
           </>
         }
@@ -282,6 +330,11 @@ const styles = StyleSheet.create({
   followButtonText: { color: '#999', fontSize: 16, fontWeight: '800' },
   followButtonTextActive: { color: '#0B0F0D' },
   sectionLabel: { color: '#6B7280', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, paddingHorizontal: 20, marginBottom: 8 },
+  albumRail: { paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
+  albumCard: { width: 132 },
+  albumCover: { width: 132, height: 132, borderRadius: 12, backgroundColor: '#1F2023', marginBottom: 8 },
+  albumTitle: { color: '#E5E2E1', fontSize: 14, fontWeight: '700' },
+  albumMeta: { color: '#6B7280', fontSize: 12, marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderRadius: 12, marginHorizontal: 8, marginBottom: 2 },
   rowActive: { backgroundColor: 'rgba(83,224,118,0.08)' },
   rowIndex: { width: 24, color: '#4B5563', fontSize: 13, fontWeight: '600', textAlign: 'center' },

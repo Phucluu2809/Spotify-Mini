@@ -34,6 +34,7 @@ type Playlist = {
   userId: string;
   name: string;
   description?: string;
+  isPrivate?: boolean;
   songs: Song[];
   cover?: string;
 };
@@ -59,6 +60,7 @@ export default function PlaylistScreen() {
     addSongToPlaylist,
     removeSongFromPlaylist,
     deletePlaylist,
+    updatePlaylist,
     followPlaylist,
     unfollowPlaylist,
     isPlaylistFollowed,
@@ -70,6 +72,7 @@ export default function PlaylistScreen() {
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [loadingModal, setLoadingModal] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
 
   const handlePlayPlaylist = () => {
     if (!playlist?.songs?.length) return;
@@ -175,6 +178,27 @@ export default function PlaylistScreen() {
     setFollowLoading(false);
   };
 
+  const handleToggleVisibility = async () => {
+    if (!playlist || !isOwner) return;
+    setVisibilityLoading(true);
+    const updated = await updatePlaylist(
+      playlist._id,
+      playlist.name,
+      playlist.description || "",
+      !playlist.isPrivate
+    );
+    if (updated) {
+      setPlaylist(updated);
+      Alert.alert(
+        updated.isPrivate ? 'Đã chuyển thành riêng tư' : 'Đã chuyển thành công khai',
+        updated.isPrivate
+          ? 'Playlist này đã được ẩn khỏi tìm kiếm công khai.'
+          : 'Playlist này đã xuất hiện trong tìm kiếm công khai.'
+      );
+    }
+    setVisibilityLoading(false);
+  };
+
   const ListHeader = () => (
     <>
       <ImageBackground
@@ -189,6 +213,11 @@ export default function PlaylistScreen() {
           <Text style={styles.heroTitle}>{playlist?.name || 'Playlist'}</Text>
           {playlist?.description ? (
             <Text style={styles.heroSubtitle}>{playlist.description}</Text>
+          ) : null}
+          {playlist ? (
+            <Text style={styles.heroPrivacy}>
+              {playlist.isPrivate ? 'Private playlist' : 'Public playlist'}
+            </Text>
           ) : null}
           <Text style={styles.heroCount}>{playlist?.songs?.length || 0} bài hát</Text>
         </View>
@@ -205,10 +234,22 @@ export default function PlaylistScreen() {
             </Pressable>
 
             {isOwner ? (
-              <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
-                <Ionicons name="add" size={18} color="#fff" />
-                <Text style={styles.addBtnText}>Thêm bài</Text>
-              </Pressable>
+              <>
+                <Pressable style={styles.visibilityBtn} onPress={handleToggleVisibility} disabled={visibilityLoading}>
+                  {visibilityLoading ? (
+                    <ActivityIndicator size="small" color="#E5E2E1" />
+                  ) : (
+                    <>
+                      <Ionicons name={playlist?.isPrivate ? 'lock-closed' : 'earth'} size={16} color="#E5E2E1" />
+                      <Text style={styles.visibilityBtnText}>{playlist?.isPrivate ? 'Private' : 'Public'}</Text>
+                    </>
+                  )}
+                </Pressable>
+                <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
+                  <Ionicons name="add" size={18} color="#fff" />
+                  <Text style={styles.addBtnText}>Thêm bài</Text>
+                </Pressable>
+              </>
             ) : (
               <Pressable
                 style={[styles.followBtn, followed && styles.followBtnActive]}
@@ -229,10 +270,22 @@ export default function PlaylistScreen() {
         ) : null}
 
         {(playlist?.songs?.length || 0) === 0 && !loading && isOwner ? (
-          <Pressable style={[styles.addBtn, styles.addBtnFull]} onPress={handleOpenAddModal}>
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Thêm bài hát đầu tiên</Text>
-          </Pressable>
+          <View style={styles.ownerEmptyActions}>
+            <Pressable style={styles.visibilityBtn} onPress={handleToggleVisibility} disabled={visibilityLoading}>
+              {visibilityLoading ? (
+                <ActivityIndicator size="small" color="#E5E2E1" />
+              ) : (
+                <>
+                  <Ionicons name={playlist?.isPrivate ? 'lock-closed' : 'earth'} size={16} color="#E5E2E1" />
+                  <Text style={styles.visibilityBtnText}>{playlist?.isPrivate ? 'Private' : 'Public'}</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable style={[styles.addBtn, styles.addBtnFull]} onPress={handleOpenAddModal}>
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.addBtnText}>Thêm bài hát đầu tiên</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         {(playlist?.songs?.length || 0) === 0 && !loading && !isOwner ? (
@@ -407,6 +460,7 @@ const styles = StyleSheet.create({
   heroText: { zIndex: 1 },
   heroTitle: { color: '#fff', fontSize: 32, fontWeight: '900', fontStyle: 'italic', marginBottom: 6 },
   heroSubtitle: { color: 'rgba(255,255,255,0.75)', fontSize: 14, marginBottom: 4 },
+  heroPrivacy: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase' },
   heroCount: { color: 'rgba(255,255,255,0.55)', fontSize: 13 },
 
   actionRow: {
@@ -437,8 +491,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C3AED',
   },
   addBtnFull: { marginTop: 8 },
+  ownerEmptyActions: { flex: 1, gap: 8 },
   followBtnFull: { marginTop: 8 },
   addBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  visibilityBtn: {
+    minWidth: 120,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: '#4B5563',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 16,
+  },
+  visibilityBtnText: { color: '#E5E2E1', fontSize: 14, fontWeight: '700' },
   followBtn: {
     flex: 1,
     flexDirection: 'row',

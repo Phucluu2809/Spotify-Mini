@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { usePlayer } from '../../context/PlayerContext';
 
 const profile = {
   name: 'Alex Johnson',
@@ -85,6 +86,12 @@ function SectionCard({ title, items }: { title: string; items: SettingItem[] }) 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { clearPlayer } = usePlayer();
+
+  const handleLogout = async () => {
+    await clearPlayer();
+    await logout();
+  };
 
   const groupsWithActions = settingsGroups.map((group) => ({
     ...group,
@@ -179,7 +186,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        <Pressable style={styles.logoutButton} onPress={logout}>
+        <Pressable style={styles.logoutButton} onPress={() => void handleLogout()}>
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
       </ScrollView>

@@ -1,5 +1,5 @@
 import {
-  createContext, useContext, useEffect, useRef, useState, type ReactNode
+  createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode
 } from "react";
 import { Audio, type AVPlaybackStatus } from "expo-av";
 import * as SecureStore from "expo-secure-store";
@@ -20,6 +20,7 @@ type PlayerContextType = {
   togglePlayPause: () => Promise<void>;
   seekTo: (nextPositionMillis: number) => Promise<void>;
   setSeeking: (seeking: boolean) => void;
+  clearPlayer: () => Promise<void>;
   isPlaying: boolean; positionMillis: number; durationMillis: number;
   playNext: () => Promise<void>; playPrevious: () => Promise<void>;
   hasNext: boolean; hasPrevious: boolean;
@@ -54,10 +55,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [songQueue, setSongQueue] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isSeeking, setIsSeeking] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
   const queueRef = useRef<Song[]>([]);
   const indexRef = useRef(-1);
   const seekingRef = useRef(false);
 
+  useEffect(() => { soundRef.current = sound; }, [sound]);
   useEffect(() => { queueRef.current = songQueue; }, [songQueue]);
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
   useEffect(() => { seekingRef.current = isSeeking; }, [isSeeking]);
@@ -141,9 +144,31 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (prev) await playSong(prev, songQueue); else await sound.setPositionAsync(0);
   };
 
+  const clearPlayer = useCallback(async () => {
+    const activeSound = soundRef.current;
+    if (activeSound) {
+      try {
+        await activeSound.stopAsync();
+        await activeSound.unloadAsync();
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
+    soundRef.current = null;
+    setSound((prev) => (prev === null ? prev : null));
+    setCurrentSong((prev) => (prev === null ? prev : null));
+    setIsPlaying((prev) => (prev ? false : prev));
+    setPositionMillis((prev) => (prev === 0 ? prev : 0));
+    setDurationMillis((prev) => (prev === 0 ? prev : 0));
+    setSongQueue((prev) => (prev.length === 0 ? prev : []));
+    setCurrentIndex((prev) => (prev === -1 ? prev : -1));
+    setIsSeeking((prev) => (prev ? false : prev));
+  }, []);
+
   return (
     <PlayerContext.Provider value={{
-      currentSong, playSong, togglePlayPause, seekTo, setSeeking: setIsSeeking, isPlaying,
+      currentSong, playSong, togglePlayPause, seekTo, setSeeking: setIsSeeking, clearPlayer, isPlaying,
       positionMillis, durationMillis, playNext, playPrevious,
       hasNext: currentIndex >= 0 && currentIndex < songQueue.length - 1,
       hasPrevious: currentIndex > 0

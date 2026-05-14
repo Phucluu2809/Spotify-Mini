@@ -33,7 +33,7 @@ export default function PlayerScreen() {
     playPrevious, hasNext, hasPrevious, seekTo, setSeeking
   } = usePlayer();
 
-  const { isFavorite, toggleFavorite } = useFavorite(); 
+  const { isFavorite, toggleFavorite } = useFavorite();
   const { playlists, getPlaylists, addSongToPlaylist, loading: playlistsLoading } = usePlaylist();
   const liked = currentSong ? isFavorite(currentSong._id) : false;
 
@@ -62,7 +62,7 @@ export default function PlayerScreen() {
   const handleGoToArtist = () => {
     setMenuVisible(false);
     if (!currentSong) return;
-    router.push(`/artist/${encodeURIComponent(currentSong.artist)}` as any);
+    router.push(`/(tabs)/artist/${encodeURIComponent(currentSong.artist)}` as any);
   };
 
   const handleAddToFavorites = () => {
@@ -151,8 +151,8 @@ export default function PlayerScreen() {
 
       {/* Action Menu Modal */}
       <Modal visible={menuVisible} transparent animationType="fade">
-        <Pressable 
-          style={styles.menuOverlay} 
+        <Pressable
+          style={styles.menuOverlay}
           onPress={() => setMenuVisible(false)}
         >
           <View style={styles.menuContainer}>
@@ -160,12 +160,12 @@ export default function PlayerScreen() {
               <Ionicons name="list-outline" size={22} color="#53E076" />
               <Text style={styles.menuItemText}>Thêm vào danh sách phát</Text>
             </Pressable>
-            
+
             <Pressable onPress={handleGoToArtist} style={styles.menuItem}>
               <Ionicons name="person-outline" size={22} color="#53E076" />
               <Text style={styles.menuItemText}>Chuyển tới nghệ sỹ</Text>
             </Pressable>
-            
+
             <Pressable onPress={handleAddToFavorites} style={styles.menuItem}>
               <Ionicons name={liked ? "heart" : "heart-outline"} size={22} color="#53E076" />
               <Text style={styles.menuItemText}>{liked ? "Bỏ yêu thích" : "Thêm vào yêu thích"}</Text>
@@ -183,13 +183,13 @@ export default function PlayerScreen() {
               <Ionicons name="close" size={28} color="white" />
             </Pressable>
           </View>
-          
+
           {playlistsLoading ? (
             <Text style={styles.playlistLoadingText}>Đang tải danh sách phát...</Text>
           ) : playlists.length === 0 ? (
             <View style={styles.playlistEmptyContainer}>
               <Text style={styles.playlistEmptyText}>Bạn chưa có danh sách phát nào</Text>
-              <Pressable 
+              <Pressable
                 style={styles.playlistCreateButton}
                 onPress={() => {
                   setPlaylistSelectVisible(false);
@@ -202,7 +202,7 @@ export default function PlayerScreen() {
           ) : (
             <ScrollView style={styles.playlistList} contentContainerStyle={styles.playlistListContent}>
               {playlists.map((playlist) => (
-                <Pressable 
+                <Pressable
                   key={playlist._id}
                   style={styles.playlistItem}
                   onPress={() => handleSelectPlaylist(playlist._id)}
@@ -228,7 +228,7 @@ export default function PlayerScreen() {
           <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
           <Text style={styles.artist} numberOfLines={1}>{currentSong.artist}</Text>
         </View>
- 
+
         <Pressable onPress={() => toggleFavorite(currentSong._id)} hitSlop={12}>
           <Ionicons
             name={liked ? "heart" : "heart-outline"}
@@ -303,20 +303,20 @@ const styles = StyleSheet.create({
   emptyText: { color: "#C8C8C8", fontSize: 16 },
   backButton: { position: "absolute", top: 64, left: 24 },
   menuOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-start", paddingTop: 80 },
-  menuContainer: { 
-    marginHorizontal: 16, 
+  menuContainer: {
+    marginHorizontal: 16,
     marginRight: 16,
-    backgroundColor: "#1E1E1E", 
-    borderRadius: 12, 
+    backgroundColor: "#1E1E1E",
+    borderRadius: 12,
     overflow: "hidden",
     marginLeft: "auto",
     width: 240
   },
-  menuItem: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    gap: 12, 
-    paddingHorizontal: 16, 
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.1)"

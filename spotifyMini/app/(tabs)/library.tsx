@@ -267,7 +267,7 @@ export default function Library() {
                   <ListRow
                     key={item.id}
                     item={item}
-                    onPress={() => item.entityId && router.push(`/album/${item.entityId}`)}
+                    onPress={() => item.entityId && router.push(`/(tabs)/album/${item.entityId}`)}
                   />
                 ))}
               </>
@@ -286,7 +286,7 @@ export default function Library() {
                   <ListRow
                     key={item.id}
                     item={item}
-                    onPress={() => item.entityId && router.push(`/playlist/${item.entityId}`)}
+                    onPress={() => item.entityId && router.push(`/(tabs)/playlist/${item.entityId}`)}
                   />
                 ))}
               </>
@@ -320,7 +320,7 @@ export default function Library() {
                       item={item}
                       onPress={() =>
                         item.artistName &&
-                        router.push(`/artist/${encodeURIComponent(item.artistName)}` as any)
+                        router.push(`/(tabs)/artist/${encodeURIComponent(item.artistName)}` as any)
                       }
                     />
                   ))}
@@ -337,13 +337,13 @@ export default function Library() {
             {homeItems.map((item) => {
               let onPress: (() => void) | undefined;
               if (item.itemType === "liked") {
-                onPress = () => navigation.navigate("my-playlist" as never);
+                onPress = () => router.push("/(tabs)/my-playlist");
               } else if (item.itemType === "artist" && item.artistName) {
-                onPress = () => router.push(`/artist/${encodeURIComponent(item.artistName)}` as any);
+                onPress = () => router.push(`/(tabs)/artist/${encodeURIComponent(item.artistName)}` as any);
               } else if (item.itemType === "playlist" && item.entityId) {
-                onPress = () => router.push(`/playlist/${item.entityId}` as any);
+                onPress = () => router.push(`/(tabs)/playlist/${item.entityId}` as any);
               } else if (item.itemType === "album" && item.entityId) {
-                onPress = () => router.push(`/album/${item.entityId}` as any);
+                onPress = () => router.push(`/(tabs)/album/${item.entityId}` as any);
               }
               return <ListRow key={item.id} item={item} onPress={onPress} />;
             })}

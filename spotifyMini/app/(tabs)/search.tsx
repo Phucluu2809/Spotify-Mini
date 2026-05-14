@@ -10,8 +10,10 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 import { usePlayer, type Song } from "../../context/PlayerContext";
+import { usePlaylist } from "../../context/PlaylistContext";
 import { API } from "../../services/api";
 
 type SearchFilter = "all" | "artist" | "album" | "playlist" | "track";
@@ -23,6 +25,7 @@ type EntityResult = {
   image?: string;
   kind: SearchFilter;
   songs: Song[];
+  playlistId?: string;
 };
 
 type ResultItem = {
@@ -33,6 +36,14 @@ type ResultItem = {
   kind: SearchFilter;
   song?: Song;
   songs?: Song[];
+  playlistId?: string;
+};
+
+type PlaylistItem = {
+  _id: string;
+  name: string;
+  cover?: string;
+  songs?: Song[];
 };
 
 const searchCategories: Array<{
@@ -41,19 +52,22 @@ const searchCategories: Array<{
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
 }> = [
-  { key: "track", label: "Songs", icon: "musical-notes", color: "#1D4ED8" },
-  { key: "artist", label: "Artists", icon: "person", color: "#9333EA" },
-  { key: "album", label: "Albums", icon: "disc", color: "#0F766E" },
-  { key: "playlist", label: "Playlists", icon: "list", color: "#BE123C" },
-];
+    { key: "track", label: "Songs", icon: "musical-notes", color: "#1D4ED8" },
+    { key: "artist", label: "Artists", icon: "person", color: "#9333EA" },
+    { key: "album", label: "Albums", icon: "disc", color: "#0F766E" },
+    { key: "playlist", label: "Playlists", icon: "list", color: "#BE123C" },
+  ];
 
 const normalize = (value?: string) => (value || "").trim().toLowerCase();
 
 export default function SearchScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
+  const [publicPlaylists, setPublicPlaylists] = useState<PlaylistItem[]>([]);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<SearchFilter>("all");
   const { playSong, currentSong } = usePlayer();
+  const { playlists, followedPlaylists } = usePlaylist();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -66,6 +80,20 @@ export default function SearchScreen() {
     };
 
     fetchSongs();
+  }, []);
+
+  useEffect(() => {
+    const fetchPublicPlaylists = async () => {
+      try {
+        const res = await API.get("/playlists/public");
+        setPublicPlaylists(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.log(err);
+        setPublicPlaylists([]);
+      }
+    };
+
+    fetchPublicPlaylists();
   }, []);
 
   const categorizedEntities = useMemo(() => {
@@ -104,20 +132,21 @@ export default function SearchScreen() {
         albumMap.get(albumKey)?.songs.push(song);
       }
 
-      const playlistName = (song.playlist || "").trim();
-      const playlistKey = normalize(song.playlist);
-      if (playlistKey) {
-        if (!playlistMap.has(playlistKey)) {
-          playlistMap.set(playlistKey, {
-            id: `playlist-${playlistKey}`,
-            title: playlistName,
-            subtitle: "Playlist",
-            image: song.image,
-            kind: "playlist",
-            songs: [],
-          });
-        }
-        playlistMap.get(playlistKey)?.songs.push(song);
+    });
+
+    const allPlaylists = [...publicPlaylists, ...playlists, ...followedPlaylists];
+    allPlaylists.forEach((playlist) => {
+      if (!playlist?._id || !playlist?.name) return;
+      if (!playlistMap.has(playlist._id)) {
+        playlistMap.set(playlist._id, {
+          id: `playlist-${playlist._id}`,
+          playlistId: playlist._id,
+          title: playlist.name,
+          subtitle: "Playlist",
+          image: playlist.cover || playlist.songs?.[0]?.image,
+          kind: "playlist",
+          songs: playlist.songs || [],
+        });
       }
     });
 
@@ -126,7 +155,7 @@ export default function SearchScreen() {
       albums: Array.from(albumMap.values()),
       playlists: Array.from(playlistMap.values()),
     };
-  }, [songs]);
+  }, [songs, publicPlaylists, playlists, followedPlaylists]);
 
   const hasKeyword = keyword.trim().length > 0;
   const normalizedKeyword = normalize(keyword);
@@ -138,18 +167,15 @@ export default function SearchScreen() {
       const title = normalize(song.title);
       const artist = normalize(song.artist);
       const album = normalize(song.album);
-      const playlist = normalize(song.playlist);
 
       if (filter === "artist") return artist.includes(normalizedKeyword);
       if (filter === "album") return album.includes(normalizedKeyword);
-      if (filter === "playlist") return playlist.includes(normalizedKeyword);
       if (filter === "track") return title.includes(normalizedKeyword);
 
       return (
         title.includes(normalizedKeyword) ||
         artist.includes(normalizedKeyword) ||
-        album.includes(normalizedKeyword) ||
-        playlist.includes(normalizedKeyword)
+        album.includes(normalizedKeyword)
       );
     });
   }, [songs, filter, hasKeyword, normalizedKeyword]);
@@ -185,6 +211,7 @@ export default function SearchScreen() {
         image: item.image,
         kind: item.kind,
         songs: item.songs,
+        playlistId: item.kind === "playlist" ? item.playlistId : undefined,
       }));
 
     const trackItems = filteredTracks.map<ResultItem>((song) => ({
@@ -212,6 +239,16 @@ export default function SearchScreen() {
   const playResult = (item: ResultItem) => {
     if (item.kind === "track" && item.song) {
       playSong(item.song, filteredTracks);
+      return;
+    }
+
+    if (item.kind === "artist") {
+      router.push(`/(tabs)/artist/${encodeURIComponent(item.title)}` as any);
+      return;
+    }
+
+    if (item.kind === "playlist" && item.playlistId) {
+      router.push(`/(tabs)/playlist/${item.playlistId}` as any);
       return;
     }
 

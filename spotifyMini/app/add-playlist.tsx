@@ -32,7 +32,7 @@ export default function AddPlaylistScreen() {
     const newPlaylist = await createPlaylist(playlistName.trim(), description.trim(), isPrivate);
     if (newPlaylist) {
       Alert.alert("Thành công", "Playlist đã được tạo!");
-      router.push(`/playlist/${newPlaylist._id}`);
+      router.push(`/(tabs)/playlist/${newPlaylist._id}`);
     } else {
       Alert.alert("Lỗi", "Không thể tạo playlist. Vui lòng thử lại.");
     }

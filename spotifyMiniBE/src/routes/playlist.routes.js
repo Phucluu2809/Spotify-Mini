@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const {
   createPlaylist,
   getUserPlaylists,
+  getPublicPlaylists,
   getPlaylistById,
   updatePlaylist,
   deletePlaylist,
@@ -12,7 +13,10 @@ const {
   removeSongFromPlaylist
 } = require('../controllers/playlist.controller');
 
-// All playlist routes require authentication
+// Public endpoint
+router.get('/public', getPublicPlaylists);
+
+// Protected endpoints
 router.post('/', auth, createPlaylist);
 router.get('/', auth, getUserPlaylists);
 router.get('/:id', auth, getPlaylistById);

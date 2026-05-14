@@ -116,7 +116,7 @@ export default function HomeScreen() {
                 subtitle={item.subtitle}
                 image={item.image}
                 onPress={() =>
-                  router.push(`/artist/${encodeURIComponent(item.artist)}` as any)
+                  router.push(`/(tabs)/artist/${encodeURIComponent(item.artist)}` as any)
                 }
               />
             </View>
@@ -137,8 +137,8 @@ export default function HomeScreen() {
           {recsLoading
             ? 'Đang phân tích lịch sử nghe...'
             : isPersonalized
-            ? `Dựa trên ${topArtists.slice(0, 2).join(', ')}${topArtists.length > 2 ? ' và hơn thế' : ''}`
-            : 'Khám phá những bài hay cho bạn'}
+              ? `Dựa trên ${topArtists.slice(0, 2).join(', ')}${topArtists.length > 2 ? ' và hơn thế' : ''}`
+              : 'Khám phá những bài hay cho bạn'}
         </Text>
 
         {recsLoading ? (

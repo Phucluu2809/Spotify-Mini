@@ -8,6 +8,7 @@ import {
 } from "react";
 import * as SecureStore from "expo-secure-store";
 import { API_URL } from "../app/config/api";
+import { useAuth } from "./AuthContext";
 
 type Song = {
   _id: string;
@@ -52,6 +53,7 @@ type PlaylistContextType = {
 const PlaylistContext = createContext<PlaylistContextType | null>(null);
 
 export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
+  const { token } = useAuth();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [followedPlaylists, setFollowedPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(false);
@@ -307,9 +309,19 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
-    getPlaylists();
-    getFollowedPlaylists();
-  }, []);
+    if (!token) {
+      setPlaylists([]);
+      setFollowedPlaylists([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    setPlaylists([]);
+    setFollowedPlaylists([]);
+    void getPlaylists();
+    void getFollowedPlaylists();
+  }, [token, getPlaylists, getFollowedPlaylists]);
 
   return (
     <PlaylistContext.Provider
