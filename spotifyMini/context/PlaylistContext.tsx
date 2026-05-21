@@ -6,7 +6,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
 import { API_URL } from "../app/config/api";
 import { useAuth } from "./AuthContext";
 
@@ -60,21 +59,16 @@ type PlaylistContextType = {
 const PlaylistContext = createContext<PlaylistContextType | null>(null);
 
 export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
-  const { token } = useAuth();
+  const { token, handleUnauthorized } = useAuth();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [followedPlaylists, setFollowedPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getToken = async () => {
-    return await SecureStore.getItemAsync("spotifymini.auth.token");
-  };
-
   const getPlaylists = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const token = await getToken();
       if (!token) {
         setError("No authentication token");
         return;
@@ -82,7 +76,13 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/playlists`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Failed to fetch playlists: ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          await handleUnauthorized();
+          return;
+        }
+        throw new Error(`Failed to fetch playlists: ${res.status}`);
+      }
       const data = await res.json();
       setPlaylists(Array.isArray(data) ? data : []);
     } catch (err: any) {
@@ -92,11 +92,10 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token, handleUnauthorized]);
 
   const getFollowedPlaylists = useCallback(async () => {
     try {
-      const token = await getToken();
       if (!token) {
         setFollowedPlaylists([]);
         return;
@@ -104,7 +103,13 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/user/followed-playlists`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Failed to fetch followed playlists: ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          await handleUnauthorized();
+          return;
+        }
+        throw new Error(`Failed to fetch followed playlists: ${res.status}`);
+      }
       const data = await res.json();
       setFollowedPlaylists(Array.isArray(data) ? data : []);
     } catch (err: any) {
@@ -112,11 +117,10 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to fetch followed playlists");
       setFollowedPlaylists([]);
     }
-  }, []);
+  }, [token, handleUnauthorized]);
 
   const getPlaylistById = useCallback(async (id: string) => {
     try {
-      const token = await getToken();
       if (!token) return null;
       const res = await fetch(`${API_URL}/playlists/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -127,7 +131,7 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       console.log("Error fetching playlist:", err);
       return null;
     }
-  }, []);
+  }, [token]);
 
   const createPlaylist = useCallback(
     async (
@@ -135,11 +139,10 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       description = "",
       isPrivate = false,
       cover = "",
-      coverImageUri,
-      coverImageName
+      coverImageUri?: string,
+      coverImageName?: string
     ) => {
       try {
-        const token = await getToken();
         if (!token) {
           setError("No authentication token");
           return null;
@@ -176,13 +179,12 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
     },
-    []
+    [token]
   );
 
   const updatePlaylist = useCallback(
     async (id: string, name: string, description = "", isPrivate = false, cover = "") => {
       try {
-        const token = await getToken();
         if (!token) {
           setError("No authentication token");
           return null;
@@ -207,12 +209,11 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
     },
-    []
+    [token]
   );
 
   const deletePlaylist = useCallback(async (id: string) => {
     try {
-      const token = await getToken();
       if (!token) {
         setError("No authentication token");
         return false;
@@ -229,12 +230,11 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to delete playlist");
       return false;
     }
-  }, []);
+  }, [token]);
 
   const addSongToPlaylist = useCallback(
     async (playlistId: string, songId: string) => {
       try {
-        const token = await getToken();
         if (!token) {
           setError("No authentication token");
           return null;
@@ -259,13 +259,12 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
     },
-    []
+    [token]
   );
 
   const removeSongFromPlaylist = useCallback(
     async (playlistId: string, songId: string) => {
       try {
-        const token = await getToken();
         if (!token) {
           setError("No authentication token");
           return null;
@@ -286,12 +285,11 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
     },
-    []
+    [token]
   );
 
   const followPlaylist = useCallback(async (playlistId: string) => {
     try {
-      const token = await getToken();
       if (!token) {
         setError("No authentication token");
         return false;
@@ -308,11 +306,10 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to follow playlist");
       return false;
     }
-  }, [getFollowedPlaylists]);
+  }, [token, getFollowedPlaylists]);
 
   const unfollowPlaylist = useCallback(async (playlistId: string) => {
     try {
-      const token = await getToken();
       if (!token) {
         setError("No authentication token");
         return false;
@@ -329,7 +326,7 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to unfollow playlist");
       return false;
     }
-  }, [getFollowedPlaylists]);
+  }, [token, getFollowedPlaylists]);
 
   const isPlaylistFollowed = useCallback(
     (playlistId: string) => followedPlaylists.some((playlist) => playlist._id === playlistId),

@@ -2,6 +2,7 @@
   "expo": {
     "name": "SpotifyMini",
     "slug": "spotifyMini",
+    "scheme": "spotifymini",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {

@@ -6,8 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
 import { API_URL } from "../app/config/api";
+import { useAuth } from "./AuthContext";
 
 type Song = {
   _id: string;
@@ -41,6 +41,7 @@ type ArtistContextType = {
 const ArtistContext = createContext<ArtistContextType | null>(null);
 
 export const ArtistProvider = ({ children }: { children: ReactNode }) => {
+  const { token, isReady, handleUnauthorized } = useAuth();
   const [followedArtists, setFollowedArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,6 @@ export const ArtistProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      const token = await SecureStore.getItemAsync("spotifymini.auth.token");
       if (!token) {
         setFollowedArtists([]);
         setLoading(false);
@@ -65,7 +65,11 @@ export const ArtistProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch followed artists");
+        if (response.status === 401) {
+          await handleUnauthorized();
+          return;
+        }
+        throw new Error(`Failed to fetch followed artists: ${response.status}`);
       }
 
       const data = await response.json();
@@ -77,7 +81,7 @@ export const ArtistProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token, handleUnauthorized]);
 
   const addFollowedArtist = useCallback((artist: Artist) => {
     setFollowedArtists((prev) => {
@@ -96,8 +100,16 @@ export const ArtistProvider = ({ children }: { children: ReactNode }) => {
   }, [getFollowedArtists]);
 
   useEffect(() => {
-    getFollowedArtists();
-  }, []);
+    if (!isReady) return;
+    if (!token) {
+      setFollowedArtists([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    void getFollowedArtists();
+  }, [isReady, token, getFollowedArtists]);
 
   return (
     <ArtistContext.Provider

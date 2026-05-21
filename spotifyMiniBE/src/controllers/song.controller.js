@@ -1,9 +1,30 @@
 const Song = require('../models/song.model');
 const { ensureSongDuration, ensureSongDurations } = require('../utils/songDuration');
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const getSongs = async (req, res) => {
   try {
-    const songs = await Song.find();
+    const keyword = String(req.query.q || '').trim();
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 50)
+      : 0;
+
+    const filter = keyword
+      ? {
+          $or: [
+            { title: { $regex: escapeRegex(keyword), $options: 'i' } },
+            { artist: { $regex: escapeRegex(keyword), $options: 'i' } },
+            { album: { $regex: escapeRegex(keyword), $options: 'i' } }
+          ]
+        }
+      : {};
+
+    let query = Song.find(filter).sort({ createdAt: -1 });
+    if (limit > 0) query = query.limit(limit);
+
+    const songs = await query;
     await ensureSongDurations(songs);
     res.json(songs);
   } catch (err) {

@@ -45,7 +45,7 @@ export default function ArtistScreen() {
   const router = useRouter();
   const { playSong, currentSong, isPlaying, togglePlayPause } = usePlayer();
   const { addFollowedArtist, removeFollowedArtist } = useArtist();
-  const { user } = useAuth();
+  const { user, handleUnauthorized } = useAuth();
   const { albums } = useAlbum();
   const [artist, setArtist] = useState<Artist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
@@ -112,7 +112,11 @@ export default function ArtistScreen() {
     try {
       const res = await API.get(`/artists/${artId}/is-following`);
       setIsFollowing(res.data.following);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        await handleUnauthorized();
+        return;
+      }
       console.log('Error checking follow status:', err);
     }
   };
@@ -132,7 +136,11 @@ export default function ArtistScreen() {
         addFollowedArtist(artist);
         Alert.alert('Following', `You are now following ${artist?.name}.`);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        await handleUnauthorized();
+        return;
+      }
       console.log('Error toggling follow:', err);
       Alert.alert('Error', 'Unable to update follow status.');
     } finally {
