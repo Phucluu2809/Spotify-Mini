@@ -1,12 +1,12 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { API } from '../../services/api';
 import { API_URL } from '../config/api';
 import { ArtistCard } from '../../components/ArtistCard';
 import { SectionTitle } from '../../components/SectionTitle';
 import { usePlayer } from '../../context/PlayerContext';
+import { useAuth } from '../../context/AuthContext';
 
 type Song = {
   _id: string;
@@ -30,11 +30,7 @@ export default function HomeScreen() {
   const [recsLoading, setRecsLoading] = useState(true);
   const router = useRouter();
   const { playSong, currentSong, isPlaying } = usePlayer();
-
-  useEffect(() => {
-    fetchSongs();
-    fetchRecommendations();
-  }, []);
+  const { token, handleUnauthorized } = useAuth();
 
   const fetchSongs = async () => {
     try {
@@ -45,13 +41,23 @@ export default function HomeScreen() {
     }
   };
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async () => {
     try {
       setRecsLoading(true);
-      const token = await SecureStore.getItemAsync('spotifymini.auth.token');
+      if (!token) {
+        setRecommendations(null);
+        return;
+      }
       const res = await fetch(`${API_URL}/history/recommendations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) {
+        if (res.status === 401) {
+          await handleUnauthorized();
+          return;
+        }
+        throw new Error(`Recommendations request failed: ${res.status}`);
+      }
       const data = await res.json();
       setRecommendations(data);
     } catch (err) {
@@ -59,7 +65,12 @@ export default function HomeScreen() {
     } finally {
       setRecsLoading(false);
     }
-  };
+  }, [token, handleUnauthorized]);
+
+  useEffect(() => {
+    fetchSongs();
+    void fetchRecommendations();
+  }, [fetchRecommendations]);
 
   const trendingNow = useMemo(() => {
     return [...songs]

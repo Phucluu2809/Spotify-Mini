@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const {
   createPlaylist,
@@ -17,10 +18,10 @@ const {
 router.get('/public', getPublicPlaylists);
 
 // Protected endpoints
-router.post('/', auth, createPlaylist);
+router.post('/', auth, upload.single('coverImage'), createPlaylist);
 router.get('/', auth, getUserPlaylists);
 router.get('/:id', auth, getPlaylistById);
-router.put('/:id', auth, updatePlaylist);
+router.put('/:id', auth, upload.single('coverImage'), updatePlaylist);
 router.delete('/:id', auth, deletePlaylist);
 router.post('/:id/songs', auth, addSongToPlaylist);
 router.delete('/:id/songs/:songId', auth, removeSongFromPlaylist);

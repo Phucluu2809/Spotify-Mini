@@ -6,8 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
 import { API_URL } from "../app/config/api";
+import { useAuth } from "./AuthContext";
 
 type Song = {
   _id: string;
@@ -48,14 +48,11 @@ type AlbumContextType = {
 const AlbumContext = createContext<AlbumContextType | null>(null);
 
 export const AlbumProvider = ({ children }: { children: ReactNode }) => {
+  const { token, isReady, handleUnauthorized } = useAuth();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [followedAlbums, setFollowedAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const getToken = async () => {
-    return await SecureStore.getItemAsync("spotifymini.auth.token");
-  };
 
   const getAlbums = useCallback(async () => {
     setLoading(true);
@@ -76,7 +73,6 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
 
   const getFollowedAlbums = useCallback(async () => {
     try {
-      const token = await getToken();
       if (!token) {
         setFollowedAlbums([]);
         return;
@@ -84,7 +80,13 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/user/followed-albums`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Failed to fetch followed albums: ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          await handleUnauthorized();
+          return;
+        }
+        throw new Error(`Failed to fetch followed albums: ${res.status}`);
+      }
       const data = await res.json();
       setFollowedAlbums(Array.isArray(data) ? data : []);
     } catch (err: any) {
@@ -92,7 +94,7 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to fetch followed albums");
       setFollowedAlbums([]);
     }
-  }, []);
+  }, [token, handleUnauthorized]);
 
   const getAlbumById = useCallback(async (id: string) => {
     try {
@@ -107,7 +109,6 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
 
   const followAlbum = useCallback(async (albumId: string) => {
     try {
-      const token = await getToken();
       if (!token) {
         setError("No authentication token");
         return false;
@@ -124,11 +125,10 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to follow album");
       return false;
     }
-  }, [getFollowedAlbums]);
+  }, [token, getFollowedAlbums]);
 
   const unfollowAlbum = useCallback(async (albumId: string) => {
     try {
-      const token = await getToken();
       if (!token) {
         setError("No authentication token");
         return false;
@@ -145,7 +145,7 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message || "Failed to unfollow album");
       return false;
     }
-  }, [getFollowedAlbums]);
+  }, [token, getFollowedAlbums]);
 
   const isAlbumFollowed = useCallback(
     (albumId: string) => followedAlbums.some((album) => album._id === albumId),
@@ -153,9 +153,18 @@ export const AlbumProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
-    getAlbums();
-    getFollowedAlbums();
-  }, []);
+    void getAlbums();
+  }, [getAlbums]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!token) {
+      setFollowedAlbums([]);
+      return;
+    }
+
+    void getFollowedAlbums();
+  }, [isReady, token, getFollowedAlbums]);
 
   return (
     <AlbumContext.Provider

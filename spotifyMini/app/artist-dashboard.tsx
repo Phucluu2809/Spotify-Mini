@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from './config/api';
+import { getDefaultCoverUrl, uploadImageFromUri } from '../services/media';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -357,6 +358,7 @@ export default function ArtistDashboardScreen() {
   const [albumName, setAlbumName] = useState('');
   const [albumYear, setAlbumYear] = useState(String(new Date().getFullYear()));
   const [albumGenre, setAlbumGenre] = useState('');
+  const [albumCoverUri, setAlbumCoverUri] = useState<string | null>(null);
 
   if (user?.role !== 'artist') {
     return (
@@ -441,6 +443,12 @@ export default function ArtistDashboardScreen() {
     setCreatingAlbum(true);
     try {
       const token = await getToken();
+      const cover = albumCoverUri
+        ? await uploadImageFromUri(
+            albumCoverUri,
+            `album-cover-${albumName.trim().toLowerCase().replace(/\s+/g, '-')}.jpg`
+          )
+        : getDefaultCoverUrl(albumName.trim());
       const res = await fetch(`${API_URL}/artist-dashboard/albums`, {
         method: 'POST',
         headers: {
@@ -451,6 +459,7 @@ export default function ArtistDashboardScreen() {
           name: albumName.trim(),
           year: Number(albumYear) || new Date().getFullYear(),
           genre: albumGenre.trim(),
+          cover,
         }),
       });
       if (!res.ok) {
@@ -460,6 +469,7 @@ export default function ArtistDashboardScreen() {
       setAlbumName('');
       setAlbumGenre('');
       setAlbumYear(String(new Date().getFullYear()));
+      setAlbumCoverUri(null);
       setAlbumModalVisible(false);
       await fetchAlbums();
       Alert.alert('Thành công', 'Đã tạo album. Giờ bạn có thể thêm bài hát vào album này.');
@@ -605,6 +615,32 @@ export default function ArtistDashboardScreen() {
               editable={!creatingAlbum}
             />
 
+            <Text style={styles.fieldLabel}>Ảnh bìa album</Text>
+            <Pressable
+              style={styles.coverPicker}
+              onPress={async () => {
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.9,
+                });
+                if (!result.canceled && result.assets?.[0]) {
+                  setAlbumCoverUri(result.assets[0].uri);
+                }
+              }}
+              disabled={creatingAlbum}
+            >
+              {albumCoverUri ? (
+                <Image source={{ uri: albumCoverUri }} style={styles.coverPreview} />
+              ) : (
+                <View style={styles.coverPlaceholder}>
+                  <Ionicons name="image-outline" size={24} color="#53E076" />
+                  <Text style={styles.coverPlaceholderText}>Chọn ảnh từ thiết bị</Text>
+                </View>
+              )}
+            </Pressable>
+
             <Pressable style={[styles.submitBtn, creatingAlbum && styles.submitBtnDisabled]} onPress={handleCreateAlbum} disabled={creatingAlbum}>
               {creatingAlbum ? <ActivityIndicator color="#0B0F0D" size="small" /> : <Text style={styles.submitBtnText}>Tạo album</Text>}
             </Pressable>
@@ -727,6 +763,38 @@ const styles = StyleSheet.create({
     minHeight: 52, borderRadius: 14, backgroundColor: '#1A1E1B',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: 16, color: '#E5E2E1', fontSize: 15,
+  },
+  coverPicker: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#1A1E1B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  coverPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(83,224,118,0.3)',
+    borderRadius: 14,
+    margin: 12,
+  },
+  coverPlaceholderText: {
+    color: '#BCCBB9',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   pickerBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Alert,
 } from 'react-native';
@@ -71,6 +72,7 @@ export default function PlaylistScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [loadingModal, setLoadingModal] = useState(false);
+  const [songSearchQuery, setSongSearchQuery] = useState('');
   const [followLoading, setFollowLoading] = useState(false);
   const [visibilityLoading, setVisibilityLoading] = useState(false);
 
@@ -103,17 +105,46 @@ export default function PlaylistScreen() {
     fetchPlaylist();
   }, [id]);
 
-  const handleOpenAddModal = async () => {
-    setShowAddModal(true);
-    setLoadingModal(true);
-    try {
-      const res = await API.get('/songs');
-      setAvailableSongs(res.data || []);
-    } catch (err) {
-      console.log('Error fetching songs:', err);
-    } finally {
+  useEffect(() => {
+    if (!showAddModal) return;
+
+    const keyword = songSearchQuery.trim();
+    if (keyword.length < 2) {
+      setAvailableSongs([]);
       setLoadingModal(false);
+      return;
     }
+
+    let cancelled = false;
+    setLoadingModal(true);
+
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await API.get('/songs', {
+          params: { q: keyword, limit: 20 },
+        });
+        if (!cancelled) {
+          setAvailableSongs(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch (err) {
+        console.log('Error searching songs:', err);
+        if (!cancelled) setAvailableSongs([]);
+      } finally {
+        if (!cancelled) setLoadingModal(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [showAddModal, songSearchQuery]);
+
+  const handleOpenAddModal = () => {
+    setShowAddModal(true);
+    setSongSearchQuery('');
+    setAvailableSongs([]);
+    setLoadingModal(false);
   };
 
   const handleAddSong = async (songId: string) => {
@@ -395,9 +426,37 @@ export default function PlaylistScreen() {
             <View style={{ width: 24 }} />
           </View>
 
+          <View style={styles.modalSearchWrap}>
+            <Ionicons name="search" size={18} color="#9CA3AF" />
+            <TextInput
+              value={songSearchQuery}
+              onChangeText={setSongSearchQuery}
+              placeholder="Tìm tên bài hát, nghệ sĩ, album..."
+              placeholderTextColor="#6B7280"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.modalSearchInput}
+              returnKeyType="search"
+            />
+            {songSearchQuery.length > 0 ? (
+              <Pressable
+                onPress={() => setSongSearchQuery('')}
+                style={styles.modalSearchClear}
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle" size={18} color="#6B7280" />
+              </Pressable>
+            ) : null}
+          </View>
+
           {loadingModal ? (
             <View style={styles.modalLoadingWrap}>
               <ActivityIndicator color="#1DB954" size="large" />
+            </View>
+          ) : songSearchQuery.trim().length < 2 ? (
+            <View style={styles.modalEmpty}>
+              <Ionicons name="search" size={48} color="#4B5563" />
+              <Text style={styles.modalEmptyText}>Nhập ít nhất 2 ký tự để tìm bài hát</Text>
             </View>
           ) : (
             <FlatList
@@ -435,7 +494,7 @@ export default function PlaylistScreen() {
               ListEmptyComponent={
                 <View style={styles.modalEmpty}>
                   <Ionicons name="musical-note" size={48} color="#4B5563" />
-                  <Text style={styles.modalEmptyText}>Chưa có bài hát nào</Text>
+                  <Text style={styles.modalEmptyText}>Không tìm thấy bài hát phù hợp</Text>
                 </View>
               }
             />
@@ -593,6 +652,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalTitle: { color: '#E5E2E1', fontSize: 17, fontWeight: '700' },
+  modalSearchWrap: {
+    height: 46,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 8,
+    borderRadius: 12,
+    backgroundColor: '#1F2023',
+    borderWidth: 1,
+    borderColor: '#2A2F35',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  modalSearchInput: {
+    flex: 1,
+    color: '#E5E2E1',
+    fontSize: 15,
+    marginLeft: 8,
+    paddingVertical: 0,
+  },
+  modalSearchClear: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalLoadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   modalList: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 40 },
 

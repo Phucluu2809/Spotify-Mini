@@ -19,6 +19,7 @@ type AuthContextType = {
   login: (payload: { token: string; user: AuthUser }) => Promise<void>;
   updateUser: (nextUser: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
+  handleUnauthorized: () => Promise<void>;
 };
 
 const AUTH_TOKEN_KEY = 'spotifymini.auth.token';
@@ -61,6 +62,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(nextUser);
   }, []);
 
+  const clearSession = useCallback(async () => {
+    await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+    setToken(null);
+    setUser(null);
+    router.replace('/(auth)/login');
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       if (token) {
@@ -75,16 +84,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.log(error);
     } finally {
-      await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-      await SecureStore.deleteItemAsync(AUTH_USER_KEY);
-      setToken(null);
-      setUser(null);
-      router.replace('/(auth)/login');
+      await clearSession();
     }
-  }, [token]);
+  }, [token, clearSession]);
+
+  const handleUnauthorized = useCallback(async () => {
+    await clearSession();
+  }, [clearSession]);
 
   return (
-    <AuthContext.Provider value={{ token, user, isReady, login, updateUser, logout }}>
+    <AuthContext.Provider value={{ token, user, isReady, login, updateUser, logout, handleUnauthorized }}>
       {children}
     </AuthContext.Provider>
   );
