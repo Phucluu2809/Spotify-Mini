@@ -1,14 +1,15 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 
 import { API_URL } from '../app/config/api';
 
-type AuthUser = {
+export type AuthUser = {
   id: string;
   name: string;
   email: string;
   role: 'user' | 'artist';
+  avatar?: string;
 };
 
 type AuthContextType = {
@@ -16,6 +17,7 @@ type AuthContextType = {
   user: AuthUser | null;
   isReady: boolean;
   login: (payload: { token: string; user: AuthUser }) => Promise<void>;
+  updateUser: (nextUser: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -47,14 +49,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void restoreSession();
   }, []);
 
-  const login = async ({ token: nextToken, user: nextUser }: { token: string; user: AuthUser }) => {
+  const login = useCallback(async ({ token: nextToken, user: nextUser }: { token: string; user: AuthUser }) => {
     await SecureStore.setItemAsync(AUTH_TOKEN_KEY, nextToken);
     await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(nextUser));
     setToken(nextToken);
     setUser(nextUser);
-  };
+  }, []);
 
-  const logout = async () => {
+  const updateUser = useCallback(async (nextUser: AuthUser) => {
+    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
+  const logout = useCallback(async () => {
     try {
       if (token) {
         await fetch(`${API_URL}/auth/logout`, {
@@ -74,10 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       router.replace('/(auth)/login');
     }
-  };
+  }, [token]);
 
   return (
-    <AuthContext.Provider value={{ token, user, isReady, login, logout }}>
+    <AuthContext.Provider value={{ token, user, isReady, login, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
