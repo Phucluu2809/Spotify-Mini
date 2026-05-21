@@ -8,6 +8,7 @@ import { usePlayer } from '../../context/PlayerContext';
 import { useArtist } from '../../context/ArtistContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlbum } from '../../context/AlbumContext';
+import { getDefaultCoverUrl } from '../../services/media';
 
 type Song = {
   _id: string; title: string; artist: string;
@@ -152,7 +153,7 @@ export default function ArtistScreen() {
   };
 
   const artistName = artist?.name || (name ? decodeURIComponent(name) : 'Artist');
-  const coverImage = artist?.image || songs[0]?.image || `https://picsum.photos/seed/${artistName}/400/400`;
+  const coverImage = artist?.image || getDefaultCoverUrl(artistName);
   const isOwnArtistProfile = Boolean(user?.id && artist?.userId && user.id === artist.userId);
   const isArtistActive = Boolean(currentSong && songs.some((song) => song._id === currentSong._id));
   const artistAlbums = (albums as Album[]).filter((album) => {
@@ -244,7 +245,7 @@ export default function ArtistScreen() {
                     >
                       <Image
                         source={{
-                          uri: album.cover || songs[0]?.image || `https://picsum.photos/seed/${album._id}/300/300`
+                          uri: album.cover || getDefaultCoverUrl(album.name, 300)
                         }}
                         style={styles.albumCover}
                       />

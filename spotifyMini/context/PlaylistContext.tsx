@@ -40,8 +40,15 @@ type PlaylistContextType = {
   getPlaylists: () => Promise<void>;
   getFollowedPlaylists: () => Promise<void>;
   getPlaylistById: (id: string) => Promise<Playlist | null>;
-  createPlaylist: (name: string, description?: string, isPrivate?: boolean) => Promise<Playlist | null>;
-  updatePlaylist: (id: string, name: string, description?: string, isPrivate?: boolean) => Promise<Playlist | null>;
+  createPlaylist: (
+    name: string,
+    description?: string,
+    isPrivate?: boolean,
+    cover?: string,
+    coverImageUri?: string,
+    coverImageName?: string
+  ) => Promise<Playlist | null>;
+  updatePlaylist: (id: string, name: string, description?: string, isPrivate?: boolean, cover?: string) => Promise<Playlist | null>;
   deletePlaylist: (id: string) => Promise<boolean>;
   addSongToPlaylist: (playlistId: string, songId: string) => Promise<Playlist | null>;
   removeSongFromPlaylist: (playlistId: string, songId: string) => Promise<Playlist | null>;
@@ -123,20 +130,41 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const createPlaylist = useCallback(
-    async (name: string, description = "", isPrivate = false) => {
+    async (
+      name: string,
+      description = "",
+      isPrivate = false,
+      cover = "",
+      coverImageUri,
+      coverImageName
+    ) => {
       try {
         const token = await getToken();
         if (!token) {
           setError("No authentication token");
           return null;
         }
+        const form = new FormData();
+        form.append("name", name);
+        form.append("description", description);
+        form.append("isPrivate", String(isPrivate));
+        form.append("cover", cover);
+
+        if (coverImageUri) {
+          const ext = coverImageName?.split(".").pop()?.split("?")[0] || "jpg";
+          form.append("coverImage", {
+            uri: coverImageUri,
+            name: coverImageName || `playlist-cover.${ext}`,
+            type: `image/${ext}`,
+          } as any);
+        }
+
         const res = await fetch(`${API_URL}/playlists`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ name, description, isPrivate }),
+          body: form,
         });
         if (!res.ok) throw new Error(`Failed to create playlist: ${res.status}`);
         const newPlaylist = await res.json();
@@ -152,7 +180,7 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const updatePlaylist = useCallback(
-    async (id: string, name: string, description = "", isPrivate = false) => {
+    async (id: string, name: string, description = "", isPrivate = false, cover = "") => {
       try {
         const token = await getToken();
         if (!token) {
@@ -165,7 +193,7 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ name, description, isPrivate }),
+          body: JSON.stringify({ name, description, isPrivate, cover }),
         });
         if (!res.ok) throw new Error(`Failed to update playlist: ${res.status}`);
         const updated = await res.json();

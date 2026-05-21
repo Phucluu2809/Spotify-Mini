@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { usePlayer, type Song } from "../../context/PlayerContext";
 import { usePlaylist } from "../../context/PlaylistContext";
 import { API } from "../../services/api";
+import { getDefaultCoverUrl } from "../../services/media";
 
 type SearchFilter = "all" | "artist" | "album" | "playlist" | "track";
 
@@ -25,6 +26,7 @@ type EntityResult = {
   image?: string;
   kind: SearchFilter;
   songs: Song[];
+  albumId?: string;
   playlistId?: string;
 };
 
@@ -36,12 +38,21 @@ type ResultItem = {
   kind: SearchFilter;
   song?: Song;
   songs?: Song[];
+  albumId?: string;
   playlistId?: string;
 };
 
 type PlaylistItem = {
   _id: string;
   name: string;
+  cover?: string;
+  songs?: Song[];
+};
+
+type AlbumItem = {
+  _id: string;
+  name: string;
+  artist: string;
   cover?: string;
   songs?: Song[];
 };
@@ -62,6 +73,7 @@ const normalize = (value?: string) => (value || "").trim().toLowerCase();
 
 export default function SearchScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
+  const [albums, setAlbums] = useState<AlbumItem[]>([]);
   const [publicPlaylists, setPublicPlaylists] = useState<PlaylistItem[]>([]);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<SearchFilter>("all");
@@ -80,6 +92,20 @@ export default function SearchScreen() {
     };
 
     fetchSongs();
+  }, []);
+
+  useEffect(() => {
+    const fetchAlbums = async () => {
+      try {
+        const res = await API.get("/albums");
+        setAlbums(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.log(err);
+        setAlbums([]);
+      }
+    };
+
+    fetchAlbums();
   }, []);
 
   useEffect(() => {
@@ -117,21 +143,21 @@ export default function SearchScreen() {
         artistMap.get(artistKey)?.songs.push(song);
       }
 
-      const albumKey = normalize(song.album);
-      if (albumKey) {
-        if (!albumMap.has(albumKey)) {
-          albumMap.set(albumKey, {
-            id: `album-${albumKey}`,
-            title: song.album,
-            subtitle: `Album • ${song.artist || "Unknown artist"}`,
-            image: song.image,
-            kind: "album",
-            songs: [],
-          });
-        }
-        albumMap.get(albumKey)?.songs.push(song);
-      }
+    });
 
+    albums.forEach((album) => {
+      if (!album?._id || !album?.name) return;
+      if (!albumMap.has(album._id)) {
+        albumMap.set(album._id, {
+          id: `album-${album._id}`,
+          albumId: album._id,
+          title: album.name,
+          subtitle: `Album • ${album.artist || "Unknown artist"}`,
+            image: album.cover || getDefaultCoverUrl(album.name),
+          kind: "album",
+          songs: album.songs || [],
+        });
+      }
     });
 
     const allPlaylists = [...publicPlaylists, ...playlists, ...followedPlaylists];
@@ -143,7 +169,7 @@ export default function SearchScreen() {
           playlistId: playlist._id,
           title: playlist.name,
           subtitle: "Playlist",
-          image: playlist.cover || playlist.songs?.[0]?.image,
+          image: playlist.cover || getDefaultCoverUrl(playlist.name),
           kind: "playlist",
           songs: playlist.songs || [],
         });
@@ -155,7 +181,7 @@ export default function SearchScreen() {
       albums: Array.from(albumMap.values()),
       playlists: Array.from(playlistMap.values()),
     };
-  }, [songs, publicPlaylists, playlists, followedPlaylists]);
+  }, [songs, albums, publicPlaylists, playlists, followedPlaylists]);
 
   const hasKeyword = keyword.trim().length > 0;
   const normalizedKeyword = normalize(keyword);
@@ -211,6 +237,7 @@ export default function SearchScreen() {
         image: item.image,
         kind: item.kind,
         songs: item.songs,
+        albumId: item.kind === "album" ? item.albumId : undefined,
         playlistId: item.kind === "playlist" ? item.playlistId : undefined,
       }));
 
@@ -239,6 +266,11 @@ export default function SearchScreen() {
   const playResult = (item: ResultItem) => {
     if (item.kind === "track" && item.song) {
       playSong(item.song, filteredTracks);
+      return;
+    }
+
+    if (item.kind === "album" && item.albumId) {
+      router.push(`/(tabs)/album/${item.albumId}` as any);
       return;
     }
 

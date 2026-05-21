@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   Alert,
   Image,
@@ -15,6 +16,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { usePlaylist } from "../context/PlaylistContext";
+import { getDefaultCoverUrl } from "../services/media";
 
 export default function AddPlaylistScreen() {
   const router = useRouter();
@@ -22,6 +24,23 @@ export default function AddPlaylistScreen() {
   const [playlistName, setPlaylistName] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [coverName, setCoverName] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+
+  const pickCover = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets?.[0]) {
+      setCoverUri(result.assets[0].uri);
+      setCoverName(result.assets[0].fileName ?? result.assets[0].uri.split("/").pop() ?? "cover.jpg");
+    }
+  };
 
   const handleCreate = async () => {
     if (!playlistName.trim()) {
@@ -29,12 +48,25 @@ export default function AddPlaylistScreen() {
       return;
     }
 
-    const newPlaylist = await createPlaylist(playlistName.trim(), description.trim(), isPrivate);
-    if (newPlaylist) {
-      Alert.alert("Thành công", "Playlist đã được tạo!");
-      router.push(`/(tabs)/playlist/${newPlaylist._id}`);
-    } else {
-      Alert.alert("Lỗi", "Không thể tạo playlist. Vui lòng thử lại.");
+    setUploadingCover(true);
+    try {
+      const defaultCover = getDefaultCoverUrl(playlistName.trim());
+      const newPlaylist = await createPlaylist(
+        playlistName.trim(),
+        description.trim(),
+        isPrivate,
+        defaultCover,
+        coverUri ?? undefined,
+        coverName ?? undefined
+      );
+      if (newPlaylist) {
+        Alert.alert("Thành công", "Playlist đã được tạo!");
+        router.push(`/(tabs)/playlist/${newPlaylist._id}`);
+      } else {
+        Alert.alert("Lỗi", "Không thể tạo playlist. Vui lòng thử lại.");
+      }
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -57,17 +89,17 @@ export default function AddPlaylistScreen() {
           <View style={styles.coverWrap}>
             <View style={styles.coverCard}>
               <Image
-                source={require("../assets/setting.png")}
+                source={{ uri: coverUri || getDefaultCoverUrl(playlistName.trim() || "playlist") }}
                 style={styles.coverImage}
               />
               <View style={styles.coverOverlay} />
               <View style={styles.choosePhoto}>
                 <Ionicons name="image-outline" size={28} color="#BCCBB9" />
-                <Text style={styles.choosePhotoText}>CHOOSE PHOTO</Text>
+                <Text style={styles.choosePhotoText}>{coverUri ? "ĐÃ CHỌN ẢNH" : "CHOOSE PHOTO"}</Text>
               </View>
             </View>
 
-            <Pressable style={styles.addPhotoButton}>
+            <Pressable style={styles.addPhotoButton} onPress={pickCover} disabled={loading || uploadingCover}>
               <Ionicons name="add" size={20} color="#003914" />
             </Pressable>
           </View>
@@ -100,9 +132,9 @@ export default function AddPlaylistScreen() {
             <Pressable
               style={[styles.createButton, loading && styles.createButtonDisabled]}
               onPress={handleCreate}
-              disabled={loading}
+              disabled={loading || uploadingCover}
             >
-              {loading ? (
+              {loading || uploadingCover ? (
                 <ActivityIndicator color="#004118" size="small" />
               ) : (
                 <Text style={styles.createButtonText}>Create</Text>

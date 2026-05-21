@@ -21,3 +21,21 @@ exports.uploadAudio = async (req, res) => {
     res.status(500).json(err);
   }
 };
+
+exports.uploadImage = async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ message: "Image file is required" });
+    }
+
+    const result = await cloudinary.uploader.upload(file.path, {
+      resource_type: "image",
+      folder: "spotify-mini/covers",
+    });
+
+    res.json({ url: result.secure_url });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+};

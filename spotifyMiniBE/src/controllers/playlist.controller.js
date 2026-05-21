@@ -1,19 +1,37 @@
 const Playlist = require('../models/playlist.model');
 const Song = require('../models/song.model');
 const { ensureSongDurations } = require('../utils/songDuration');
+const cloudinary = require('../config/cloudinary');
 
 const createPlaylist = async (req, res) => {
   try {
-    const { name, description, isPrivate } = req.body;
+    const { name, description, isPrivate, cover } = req.body;
     const userId = req.user.id;
 
     if (!name) return res.status(400).json({ message: 'Playlist name is required' });
+
+    let coverUrl = cover || '';
+    if (req.file) {
+      try {
+        const uploaded = await cloudinary.uploader.upload(req.file.path, {
+          resource_type: 'image',
+          folder: 'spotify-mini/covers',
+        });
+        coverUrl = uploaded.secure_url;
+      } catch (uploadErr) {
+        console.error('Playlist cover upload failed, fallback to provided/default cover', uploadErr.message || uploadErr);
+      }
+    }
+
+    const privateValue =
+      typeof isPrivate === 'string' ? isPrivate === 'true' : Boolean(isPrivate);
 
     const playlist = new Playlist({
       userId,
       name,
       description: description || '',
-      isPrivate: isPrivate || false,
+      cover: coverUrl,
+      isPrivate: privateValue,
       songs: []
     });
 
@@ -76,10 +94,25 @@ const updatePlaylist = async (req, res) => {
       return res.status(403).json({ message: 'You can only edit your own playlists' });
     }
 
+    if (req.file) {
+      try {
+        const uploaded = await cloudinary.uploader.upload(req.file.path, {
+          resource_type: 'image',
+          folder: 'spotify-mini/covers',
+        });
+        playlist.cover = uploaded.secure_url;
+      } catch (uploadErr) {
+        console.error('Playlist cover upload failed on update, keep previous cover', uploadErr.message || uploadErr);
+      }
+    }
+
     if (name) playlist.name = name;
     if (description !== undefined) playlist.description = description;
-    if (cover) playlist.cover = cover;
-    if (isPrivate !== undefined) playlist.isPrivate = isPrivate;
+    if (cover !== undefined) playlist.cover = cover;
+    if (isPrivate !== undefined) {
+      playlist.isPrivate =
+        typeof isPrivate === 'string' ? isPrivate === 'true' : Boolean(isPrivate);
+    }
 
     await playlist.save();
     await playlist.populate('songs');
