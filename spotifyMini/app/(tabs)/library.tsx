@@ -98,12 +98,8 @@ function ArtistRow({ item, onPress }: { item: LibraryItem; onPress?: () => void 
         <View style={[styles.artistAvatar, { backgroundColor: item.accent ?? "#2D6A4F" }]}>
           {item.image ? <Image source={{ uri: item.image }} style={styles.artistAvatarImage} /> : <View style={styles.artistAvatarInner} />}
         </View>
-        <View style={[styles.artistPlayBadge, item.featured && styles.artistPlayBadgeFeatured]}>
-          <View style={styles.artistPlayInner} />
-        </View>
       </View>
       <View style={styles.artistText}>
-        {item.featured ? <Text style={styles.artistLabel}>MOST LISTENED</Text> : null}
         <Text style={[styles.artistName, item.featured && styles.artistNameFeatured]} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.artistMeta} numberOfLines={1}>{item.subtitle}</Text>
       </View>
@@ -223,7 +219,7 @@ export default function Library() {
     return followedArtists.map((artist, idx) => ({
       id: artist._id,
       title: artist.name,
-      subtitle: `Artist • ${artist.followers ? `${artist.followers.toLocaleString()} followers • ` : ""}${artist.songs?.length || 0} bài hát`,
+      subtitle: `Artist • ${artist.songs?.length || 0} bài hát`,
       image: artist.image || getDemoImage(artist.name),
       accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
       featured: idx === 0,
