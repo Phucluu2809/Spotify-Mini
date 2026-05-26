@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "start": "npm --prefix spotifyMini run start",
+    "start:expo-go": "npm --prefix spotifyMini run start:expo-go",
+    "web": "npm --prefix spotifyMini run web"
+  },
   "dependencies": {
     "expo-linear-gradient": "^55.0.13",
     "react-native-track-player": "^4.1.2"
