@@ -1,7 +1,7 @@
 const User = require('../models/user.model');
 const Song = require('../models/song.model');
 
-// GET /favorites — trả về danh sách song objects
+// GET /favorites - return song objects
 const getFavorites = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -14,7 +14,7 @@ const getFavorites = async (req, res) => {
   }
 };
 
-// POST /favorites/:songId — toggle thêm/xóa khỏi danh sách yêu thích
+// POST /favorites/:songId - toggle a song in liked songs
 const toggleFavorite = async (req, res) => {
   try {
     const { songId } = req.params;
@@ -23,9 +23,9 @@ const toggleFavorite = async (req, res) => {
 
     const index = user.favorites.indexOf(songId);
     if (index === -1) {
-      user.favorites.push(songId);   // thêm vào
+      user.favorites.push(songId);   // add
     } else {
-      user.favorites.splice(index, 1); // xóa khỏi
+      user.favorites.splice(index, 1); // remove
     }
 
     await user.save();

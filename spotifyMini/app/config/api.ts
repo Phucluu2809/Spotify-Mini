@@ -6,6 +6,8 @@ const envApiUrl = stripTrailingSlash(
     (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").trim()
 );
 
+const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
+
 const getExpoHost = () => {
     const hostUri =
         (Constants.expoConfig as { hostUri?: string } | null)?.hostUri ??
@@ -20,7 +22,9 @@ const getExpoHost = () => {
             ?.debuggerHost ??
         "";
 
-    const cleanedHost = hostUri.replace(/^https?:\/\//, "").split(":")[0];
+    const cleanedHost = hostUri
+        .replace(/^[a-z][a-z0-9+.-]*:\/\//i, "")
+        .split(":")[0];
     return cleanedHost || "";
 };
 
@@ -29,5 +33,11 @@ const fallbackApiUrl = (() => {
     return expoHost ? `http://${expoHost}:5000` : "http://localhost:5000";
 })();
 
-export const API_URL = envApiUrl || fallbackApiUrl;
+if (envApiUrl && !isHttpUrl(envApiUrl)) {
+    console.warn(
+        `Ignoring invalid EXPO_PUBLIC_API_BASE_URL "${envApiUrl}". Use an http(s) backend URL.`
+    );
+}
+
+export const API_URL = isHttpUrl(envApiUrl) ? envApiUrl : fallbackApiUrl;
 export default {};

@@ -82,10 +82,10 @@ export default function AlbumScreen() {
     const ok = followed ? await unfollowAlbum(album._id) : await followAlbum(album._id);
     if (ok) {
       Alert.alert(
-        followed ? 'Đã bỏ lưu album' : 'Đã lưu album',
+        followed ? 'Album removed' : 'Album saved',
         followed
-          ? `Album "${album.name}" đã được gỡ khỏi thư viện của bạn.`
-          : `Album "${album.name}" đã được thêm vào thư viện của bạn.`
+          ? `Album "${album.name}" has been removed from your library.`
+          : `Album "${album.name}" has been added to your library.`
       );
     }
     setFollowLoading(false);
@@ -134,7 +134,7 @@ export default function AlbumScreen() {
                   <>
                     <Ionicons name={followed ? 'checkmark' : 'add'} size={18} color={followed ? '#0B0F0D' : '#E5E2E1'} />
                     <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
-                      {followed ? 'Đã lưu' : 'Lưu album'}
+                      {followed ? 'Saved' : 'Save album'}
                     </Text>
                   </>
                 )}
@@ -170,7 +170,7 @@ export default function AlbumScreen() {
           !loading ? (
             <View style={styles.empty}>
               <Ionicons name="albums-outline" size={44} color="#4B5563" />
-              <Text style={styles.emptyTitle}>Album chưa có bài hát</Text>
+              <Text style={styles.emptyTitle}>This album has no songs yet</Text>
             </View>
           ) : null
         }

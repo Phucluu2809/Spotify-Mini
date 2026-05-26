@@ -205,7 +205,7 @@ export default function ArtistScreen() {
                 <Text style={styles.heroName}>{artistName}</Text>
                 <Text style={styles.heroCount}>
                   {artist?.followers ? `${artist.followers.toLocaleString()} followers • ` : ''}
-                  {songs.length} bài hát
+                  {songs.length} songs
                 </Text>
                 {artist?.bio && (
                   <Text style={styles.heroBio} numberOfLines={2}>{artist.bio}</Text>
@@ -259,14 +259,14 @@ export default function ArtistScreen() {
                       />
                       <Text style={styles.albumTitle} numberOfLines={1}>{album.name}</Text>
                       <Text style={styles.albumMeta} numberOfLines={1}>
-                        {album.songs?.length || 0} bài hát
+                        {album.songs?.length || 0} songs
                       </Text>
                     </Pressable>
                   ))}
                 </ScrollView>
               </>
             ) : null}
-            <Text style={styles.sectionLabel}>BÀI HÁT</Text>
+            <Text style={styles.sectionLabel}>SONGS</Text>
           </>
         }
         renderItem={({ item, index }) => {
@@ -290,7 +290,7 @@ export default function ArtistScreen() {
           !loading ? (
             <View style={styles.empty}>
               <Ionicons name="musical-notes-outline" size={44} color="#4B5563" />
-              <Text style={styles.emptyText}>Chưa có bài hát</Text>
+              <Text style={styles.emptyText}>No songs yet</Text>
             </View>
           ) : null
         }

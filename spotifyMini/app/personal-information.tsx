@@ -15,8 +15,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AuthNotice } from '../components/AuthNotice';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/userService';
+
+type NoticeState = {
+  message: string;
+  variant: 'success' | 'error';
+};
 
 const getInitials = (name: string) => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -34,6 +40,7 @@ export default function PersonalInformationScreen() {
   const [pickedAvatar, setPickedAvatar] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const displayAvatar = pickedAvatar || avatar;
   const initials = useMemo(() => getInitials(name || email), [name, email]);
@@ -64,6 +71,13 @@ export default function PersonalInformationScreen() {
     void loadProfile();
   }, [updateUser]);
 
+  useEffect(() => {
+    if (!notice) return;
+
+    const timeoutId = setTimeout(() => setNotice(null), 3200);
+    return () => clearTimeout(timeoutId);
+  }, [notice]);
+
   const pickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -86,10 +100,11 @@ export default function PersonalInformationScreen() {
   const handleSave = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      Alert.alert('Name required', 'Please enter your display name.');
+      setNotice({ message: 'Please enter your display name.', variant: 'error' });
       return;
     }
 
+    setNotice(null);
     setSaving(true);
     try {
       const updated = await updateProfile({
@@ -105,11 +120,11 @@ export default function PersonalInformationScreen() {
       });
       setAvatar(updated.avatar ?? '');
       setPickedAvatar('');
-      Alert.alert('Profile updated', 'Your personal information has been saved.');
+      setNotice({ message: 'Your personal information has been saved.', variant: 'success' });
     } catch (err: any) {
       console.log('Update profile error:', err);
       const message = err?.response?.data?.message || 'Please try again later.';
-      Alert.alert('Could not save profile', message);
+      setNotice({ message, variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -135,6 +150,12 @@ export default function PersonalInformationScreen() {
         </View>
       ) : (
         <View style={styles.content}>
+          {notice ? (
+            <View style={styles.noticeWrap}>
+              <AuthNotice message={notice.message} variant={notice.variant} />
+            </View>
+          ) : null}
+
           <Pressable style={styles.avatarWrap} onPress={pickAvatar}>
             {displayAvatar ? (
               <Image source={{ uri: displayAvatar }} style={styles.avatarImage} />
@@ -207,6 +228,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#f1f5f9', fontSize: 22, fontWeight: '800' },
   centerState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: 22 },
+  noticeWrap: { marginBottom: 18 },
   avatarWrap: {
     width: 132,
     height: 132,

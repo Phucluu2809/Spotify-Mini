@@ -69,7 +69,7 @@ export default function MyPlaylistScreen() {
         </View>
 
         <View style={styles.songRight}>
-          {/* ✅ Nút bỏ thích ngay trong danh sách */}
+          {/* Favorite toggle inside the list */}
           <Pressable onPress={() => toggleFavorite(item._id)} hitSlop={10}>
             <Ionicons
               name={liked ? "heart" : "heart-outline"}
@@ -101,14 +101,14 @@ export default function MyPlaylistScreen() {
           <Ionicons name="heart" size={48} color="#fff" />
         </View>
         <Text style={styles.heroTitle}>Liked Songs</Text>
-        <Text style={styles.heroSubtitle}>{favorites.length} bài hát</Text>
+        <Text style={styles.heroSubtitle}>{favorites.length} songs</Text>
       </View>
 
-      {/* ✅ Nút phát tất cả */}
+      {/* Play all button */}
       {favorites.length > 0 && (
         <Pressable style={styles.playAllButton} onPress={handlePlayAll}>
           <Ionicons name={isCollectionActive && isPlaying ? "pause" : "play"} size={20} color="#0B0F0D" />
-          <Text style={styles.playAllText}>{isCollectionActive && isPlaying ? "Tạm dừng" : "Phát tất cả"}</Text>
+          <Text style={styles.playAllText}>{isCollectionActive && isPlaying ? "Pause" : "Play all"}</Text>
         </Pressable>
       )}
 
@@ -120,8 +120,8 @@ export default function MyPlaylistScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="heart-outline" size={48} color="#555" />
-            <Text style={styles.emptyText}>Chưa có bài hát yêu thích</Text>
-            <Text style={styles.emptySubText}>Bấm ♡ trên bài hát để thêm vào đây</Text>
+            <Text style={styles.emptyText}>No liked songs yet</Text>
+            <Text style={styles.emptySubText}>Tap ♡ on a song to add it here</Text>
           </View>
         }
       />

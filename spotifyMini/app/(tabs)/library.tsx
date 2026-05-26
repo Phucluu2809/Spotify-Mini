@@ -145,7 +145,7 @@ export default function Library() {
     const collectionItem: LibraryItem = {
       id: "collection-liked",
       title: "Liked Songs",
-      subtitle: `Playlist • ${favorites.length} bài hát`,
+      subtitle: `Playlist • ${favorites.length} songs`,
       accent: "#450AF5",
       itemType: "liked",
     };
@@ -153,7 +153,7 @@ export default function Library() {
     const followedPlaylistItems: LibraryItem[] = libraryPlaylists.map((playlist, idx) => ({
       id: `playlist-${playlist._id}`,
       title: playlist.name,
-      subtitle: `Playlist • ${playlist.songs?.length || 0} bài hát`,
+      subtitle: `Playlist • ${playlist.songs?.length || 0} songs`,
       accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
       itemType: "playlist",
       entityId: playlist._id,
@@ -171,7 +171,7 @@ export default function Library() {
     const followedArtistItems: LibraryItem[] = followedArtists.map((artist, idx) => ({
       id: `artist-${artist._id}`,
       title: artist.name,
-      subtitle: `Artist • ${artist.songs?.length || 0} bài hát`,
+      subtitle: `Artist • ${artist.songs?.length || 0} songs`,
       image: artist.image || getDemoImage(artist.name),
       accent: ["#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB", "#4338CA", "#0F766E"][idx % 6],
       itemType: "artist",
@@ -206,7 +206,7 @@ export default function Library() {
       return libraryPlaylists.map((playlist, idx) => ({
         id: `playlist-${playlist._id}`,
         title: playlist.name,
-        subtitle: `Playlist • ${playlist.songs?.length || 0} bài hát`,
+        subtitle: `Playlist • ${playlist.songs?.length || 0} songs`,
         accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
         itemType: "playlist",
         entityId: playlist._id,
@@ -219,7 +219,7 @@ export default function Library() {
     return followedArtists.map((artist, idx) => ({
       id: artist._id,
       title: artist.name,
-      subtitle: `Artist • ${artist.songs?.length || 0} bài hát`,
+      subtitle: `Artist • ${artist.songs?.length || 0} songs`,
       image: artist.image || getDemoImage(artist.name),
       accent: ["#4338CA", "#0F766E", "#7C3AED", "#1E3A8A", "#2D6A4F", "#2563EB"][idx % 6],
       featured: idx === 0,
@@ -239,8 +239,7 @@ export default function Library() {
 
         <View style={styles.tabsRow}>
           {tabs.map((tab) => {
-            let tabLabel = tab;
-            if (tab === "all") tabLabel = "All";
+            const tabLabel = tab === "all" ? "All" : tab;
             return (
               <TabChip
                 key={tab}
@@ -257,7 +256,7 @@ export default function Library() {
             {albumsLoading ? (
               <Text style={styles.loadingText}>Loading albums...</Text>
             ) : libraryAlbums.length === 0 ? (
-              <Text style={styles.emptyText}>Bạn chưa lưu album nào</Text>
+              <Text style={styles.emptyText}>You have not saved any albums yet</Text>
             ) : (
               <>
                 <SectionHeader label="Albums" />
@@ -276,7 +275,7 @@ export default function Library() {
             {playlistsLoading ? (
               <Text style={styles.loadingText}>Loading playlists...</Text>
             ) : libraryPlaylists.length === 0 ? (
-              <Text style={styles.emptyText}>Chưa có playlist nào trong thư viện</Text>
+              <Text style={styles.emptyText}>No playlists in your library yet</Text>
             ) : (
               <>
                 <SectionHeader label="Playlists" />
@@ -296,8 +295,8 @@ export default function Library() {
               <Text style={styles.loadingText}>Loading followed artists...</Text>
             ) : artistsDisplay.length === 0 ? (
               <View style={styles.emptyArtistsContainer}>
-                <Text style={styles.emptyArtistsTitle}>Chưa theo dõi artist nào</Text>
-                <Text style={styles.emptyArtistsText}>Khám phá các artist yêu thích của bạn</Text>
+                <Text style={styles.emptyArtistsTitle}>You are not following any artists yet</Text>
+                <Text style={styles.emptyArtistsText}>Discover artists you love</Text>
                 <Pressable
                   style={styles.discoverButton}
                   onPress={() => {
@@ -305,12 +304,12 @@ export default function Library() {
                     router.push("/(tabs)/explore" as any);
                   }}
                 >
-                  <Text style={styles.discoverButtonText}>Khám phá</Text>
+                  <Text style={styles.discoverButtonText}>Discover</Text>
                 </Pressable>
               </View>
             ) : (
               <>
-                <SectionHeader label="Theo dõi" />
+                <SectionHeader label="Following" />
                 <View style={styles.artistStack}>
                   {artistsDisplay.map((item) => (
                     <ArtistRow
@@ -330,14 +329,15 @@ export default function Library() {
           <>
             <SectionHeader label="Liked Songs" />
             {homeItems.length === 1 ? (
-              <Text style={styles.emptyText}>Hãy theo dõi album, artist hoặc playlist để hiển thị tại đây</Text>
+              <Text style={styles.emptyText}>Follow albums, artists, or playlists to show them here</Text>
             ) : null}
             {homeItems.map((item) => {
               let onPress: (() => void) | undefined;
               if (item.itemType === "liked") {
                 onPress = () => router.push("/(tabs)/my-playlist");
               } else if (item.itemType === "artist" && item.artistName) {
-                onPress = () => router.push(`/(tabs)/artist/${encodeURIComponent(item.artistName)}` as any);
+                const artistName = item.artistName;
+                onPress = () => router.push(`/(tabs)/artist/${encodeURIComponent(artistName)}` as any);
               } else if (item.itemType === "playlist" && item.entityId) {
                 onPress = () => router.push(`/(tabs)/playlist/${item.entityId}` as any);
               } else if (item.itemType === "album" && item.entityId) {

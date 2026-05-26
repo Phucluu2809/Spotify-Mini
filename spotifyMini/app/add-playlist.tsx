@@ -44,7 +44,7 @@ export default function AddPlaylistScreen() {
 
   const handleCreate = async () => {
     if (!playlistName.trim()) {
-      Alert.alert("Thiếu tên playlist", "Vui lòng nhập tên playlist trước khi tạo.");
+      Alert.alert("Playlist name required", "Please enter a playlist name before creating it.");
       return;
     }
 
@@ -60,10 +60,10 @@ export default function AddPlaylistScreen() {
         coverName ?? undefined
       );
       if (newPlaylist) {
-        Alert.alert("Thành công", "Playlist đã được tạo!");
+        Alert.alert("Success", "Playlist created.");
         router.push(`/(tabs)/playlist/${newPlaylist._id}`);
       } else {
-        Alert.alert("Lỗi", "Không thể tạo playlist. Vui lòng thử lại.");
+        Alert.alert("Error", "Could not create playlist. Please try again.");
       }
     } finally {
       setUploadingCover(false);
@@ -95,7 +95,7 @@ export default function AddPlaylistScreen() {
               <View style={styles.coverOverlay} />
               <View style={styles.choosePhoto}>
                 <Ionicons name="image-outline" size={28} color="#BCCBB9" />
-                <Text style={styles.choosePhotoText}>{coverUri ? "ĐÃ CHỌN ẢNH" : "CHOOSE PHOTO"}</Text>
+                <Text style={styles.choosePhotoText}>{coverUri ? "PHOTO SELECTED" : "CHOOSE PHOTO"}</Text>
               </View>
             </View>
 

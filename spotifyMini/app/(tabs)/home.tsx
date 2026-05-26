@@ -143,13 +143,12 @@ export default function HomeScreen() {
           onPressAction={fetchRecommendations}
         />
 
-        {/* Subtitle dựa trên loại gợi ý */}
         <Text style={styles.recSubtitle}>
           {recsLoading
-            ? 'Đang phân tích lịch sử nghe...'
+            ? 'Analyzing your listening history...'
             : isPersonalized
-              ? `Dựa trên ${topArtists.slice(0, 2).join(', ')}${topArtists.length > 2 ? ' và hơn thế' : ''}`
-              : 'Khám phá những bài hay cho bạn'}
+              ? `Based on ${topArtists.slice(0, 2).join(', ')}${topArtists.length > 2 ? ' and more' : ''}`
+              : 'Discover songs picked for you'}
         </Text>
 
         {recsLoading ? (
@@ -159,7 +158,7 @@ export default function HomeScreen() {
         ) : recSongs.length === 0 ? (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>
-              Hãy nghe vài bài để chúng tôi gợi ý nhạc phù hợp với bạn 🎵
+              Listen to a few songs so we can recommend music that fits you.
             </Text>
           </View>
         ) : (
@@ -202,7 +201,6 @@ export default function HomeScreen() {
                     </Text>
                   </View>
 
-                  {/* Playing indicator hoặc play icon */}
                   {isActive && isPlaying ? (
                     <View style={styles.playingDots}>
                       <Text style={styles.playingIcon}>▮▮</Text>

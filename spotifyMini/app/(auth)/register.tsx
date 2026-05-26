@@ -16,6 +16,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthNotice } from "../../components/AuthNotice";
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const isStrongPassword = (value: string) => {
+  return value.length >= 8 && /[A-Z]/.test(value) && /\d/.test(value);
+};
+
 export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -28,8 +34,17 @@ export default function RegisterScreen() {
   const [notice, setNotice] = useState<{ message: string; variant: "error" | "success" | "info" } | null>(null);
 
   const handleRegister = async () => {
-    if (!name || !email || !password) {
+    const trimmedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName || !normalizedEmail || !password) {
       return setNotice({ message: 'Please complete all fields', variant: "error" });
+    }
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      return setNotice({ message: 'Please enter a valid email address', variant: "error" });
+    }
+    if (!isStrongPassword(password)) {
+      return setNotice({ message: 'Password must be at least 8 characters and include an uppercase letter and a number', variant: "error" });
     }
     if (password !== confirm) return setNotice({ message: 'Passwords do not match', variant: "error" });
 
@@ -39,7 +54,7 @@ export default function RegisterScreen() {
       const res = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role })
+        body: JSON.stringify({ name: trimmedName, email: normalizedEmail, password, role })
       });
       const data = await res.json();
       setLoading(false);
