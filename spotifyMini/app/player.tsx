@@ -53,9 +53,9 @@ export default function PlayerScreen() {
     try {
       await addSongToPlaylist(playlistId, currentSong._id);
       setPlaylistSelectVisible(false);
-      Alert.alert("Thành công", "Đã thêm bài hát vào danh sách phát");
+      Alert.alert("Success", "Song added to playlist.");
     } catch (error) {
-      Alert.alert("Lỗi", "Không thể thêm bài hát vào danh sách phát");
+      Alert.alert("Error", "Could not add song to playlist.");
     }
   };
 
@@ -69,7 +69,7 @@ export default function PlayerScreen() {
     setMenuVisible(false);
     if (!currentSong) return;
     toggleFavorite(currentSong._id);
-    Alert.alert("Bài hát yêu thích", liked ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích");
+    Alert.alert("Liked Songs", liked ? "Removed from liked songs." : "Added to liked songs.");
   };
 
   const displayedPosition = isSeeking ? seekPreviewMillis : positionMillis;
@@ -129,7 +129,7 @@ export default function PlayerScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-down" size={28} color="white" />
         </TouchableOpacity>
-        <Text style={styles.emptyText}>Chưa có bài hát nào đang phát</Text>
+        <Text style={styles.emptyText}>No song is playing</Text>
       </SafeAreaView>
     );
   }
@@ -141,7 +141,7 @@ export default function PlayerScreen() {
           <Ionicons name="chevron-down" size={28} color="white" />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerLabel}>Đang phát từ</Text>
+          <Text style={styles.headerLabel}>Playing from</Text>
           <Text style={styles.headerTitle}>Spotify Mini</Text>
         </View>
         <Pressable onPress={() => setMenuVisible(true)} hitSlop={8}>
@@ -158,17 +158,17 @@ export default function PlayerScreen() {
           <View style={styles.menuContainer}>
             <Pressable onPress={handleAddToPlaylist} style={styles.menuItem}>
               <Ionicons name="list-outline" size={22} color="#53E076" />
-              <Text style={styles.menuItemText}>Thêm vào danh sách phát</Text>
+              <Text style={styles.menuItemText}>Add to playlist</Text>
             </Pressable>
 
             <Pressable onPress={handleGoToArtist} style={styles.menuItem}>
               <Ionicons name="person-outline" size={22} color="#53E076" />
-              <Text style={styles.menuItemText}>Chuyển tới nghệ sỹ</Text>
+              <Text style={styles.menuItemText}>Go to artist</Text>
             </Pressable>
 
             <Pressable onPress={handleAddToFavorites} style={styles.menuItem}>
               <Ionicons name={liked ? "heart" : "heart-outline"} size={22} color="#53E076" />
-              <Text style={styles.menuItemText}>{liked ? "Bỏ yêu thích" : "Thêm vào yêu thích"}</Text>
+              <Text style={styles.menuItemText}>{liked ? "Remove from liked songs" : "Add to liked songs"}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -178,17 +178,17 @@ export default function PlayerScreen() {
       <Modal visible={playlistSelectVisible} transparent animationType="slide">
         <SafeAreaView style={styles.playlistModalContainer}>
           <View style={styles.playlistModalHeader}>
-            <Text style={styles.playlistModalTitle}>Chọn danh sách phát</Text>
+            <Text style={styles.playlistModalTitle}>Choose playlist</Text>
             <Pressable onPress={() => setPlaylistSelectVisible(false)} hitSlop={8}>
               <Ionicons name="close" size={28} color="white" />
             </Pressable>
           </View>
 
           {playlistsLoading ? (
-            <Text style={styles.playlistLoadingText}>Đang tải danh sách phát...</Text>
+            <Text style={styles.playlistLoadingText}>Loading playlists...</Text>
           ) : playlists.length === 0 ? (
             <View style={styles.playlistEmptyContainer}>
-              <Text style={styles.playlistEmptyText}>Bạn chưa có danh sách phát nào</Text>
+              <Text style={styles.playlistEmptyText}>You do not have any playlists yet</Text>
               <Pressable
                 style={styles.playlistCreateButton}
                 onPress={() => {
@@ -196,7 +196,7 @@ export default function PlayerScreen() {
                   router.push("/add-playlist");
                 }}
               >
-                <Text style={styles.playlistCreateButtonText}>Tạo danh sách mới</Text>
+                <Text style={styles.playlistCreateButtonText}>Create new playlist</Text>
               </Pressable>
             </View>
           ) : (
@@ -209,7 +209,7 @@ export default function PlayerScreen() {
                 >
                   <View style={styles.playlistItemContent}>
                     <Text style={styles.playlistItemName} numberOfLines={1}>{playlist.name}</Text>
-                    <Text style={styles.playlistItemCount}>{playlist.songs?.length || 0} bài hát</Text>
+                    <Text style={styles.playlistItemCount}>{playlist.songs?.length || 0} songs</Text>
                   </View>
                   <Ionicons name="add-circle-outline" size={24} color="#53E076" />
                 </Pressable>

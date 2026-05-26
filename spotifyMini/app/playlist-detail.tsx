@@ -88,7 +88,7 @@ export default function PlaylistDetailScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="musical-notes-outline" size={48} color="#555" />
-            <Text style={styles.emptyText}>Không có gợi ý nào</Text>
+            <Text style={styles.emptyText}>No suggestions available</Text>
           </View>
         }
         renderItem={renderSongRow}

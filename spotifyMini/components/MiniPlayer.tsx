@@ -10,7 +10,7 @@ export default function MiniPlayer() {
   const { currentSong, togglePlayPause, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
 
-  // ✅ Ẩn khi đang mở màn hình player full
+  // Hide while the full player screen is open.
   if (!currentSong || pathname === "/player") return null;
 
   const bottomOffset = 49 + insets.bottom + 8;

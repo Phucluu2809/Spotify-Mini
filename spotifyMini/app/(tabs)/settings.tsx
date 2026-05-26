@@ -171,7 +171,7 @@ export default function SettingsScreen() {
               <SectionCard key={group.title} title={group.title} items={group.items} />
             ))}
 
-          {/* ✅ THÊM: Artist Dashboard — chỉ hiện khi role là artist */}
+          {/* Artist Dashboard - only visible for artist accounts */}
           {(user?.role === 'artist') && (
             <SectionCard
               title="Artist"

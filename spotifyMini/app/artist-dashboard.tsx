@@ -88,9 +88,9 @@ function SongRow({
         </Pressable>
         <Pressable
           onPress={() =>
-            Alert.alert('Xóa bài hát', `Bạn muốn xóa "${song.title}"?`, [
-              { text: 'Hủy', style: 'cancel' },
-              { text: 'Xóa', style: 'destructive', onPress: () => onDelete(song) },
+            Alert.alert('Delete song', `Delete "${song.title}"?`, [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => onDelete(song) },
             ])
           }
           hitSlop={8}
@@ -169,17 +169,17 @@ function SongModal({
 
   const handleSubmit = async () => {
     if (!title.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên bài hát.');
+      Alert.alert('Missing information', 'Please enter a song title.');
       return;
     }
     if (mode === 'create' && !audioUri) {
-      Alert.alert('Thiếu file nhạc', 'Vui lòng chọn file audio.');
+      Alert.alert('Missing audio file', 'Please choose an audio file.');
       return;
     }
     setSubmitting(true);
     try {
       const token = await getToken();
-      if (!token) throw new Error('Chưa đăng nhập');
+      if (!token) throw new Error('You are not logged in');
 
       const form = new FormData();
       form.append('title', title.trim());
@@ -216,13 +216,13 @@ function SongModal({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message ?? 'Có lỗi xảy ra');
+        throw new Error(err.message ?? 'Something went wrong');
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message ?? 'Không thể lưu bài hát');
+      Alert.alert('Error', err.message ?? 'Could not save song');
     } finally {
       setSubmitting(false);
     }
@@ -236,7 +236,7 @@ function SongModal({
             <Ionicons name="close" size={24} color="#E5E2E1" />
           </Pressable>
           <Text style={styles.modalTitle}>
-            {mode === 'create' ? 'Thêm bài hát' : 'Sửa bài hát'}
+            {mode === 'create' ? 'Add song' : 'Edit song'}
           </Text>
           <View style={{ width: 24 }} />
         </View>
@@ -246,17 +246,17 @@ function SongModal({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.fieldLabel}>Tên bài hát *</Text>
+          <Text style={styles.fieldLabel}>Song title *</Text>
           <TextInput
             style={styles.textInput}
             value={title}
             onChangeText={setTitle}
-            placeholder="Nhập tên bài hát"
+            placeholder="Enter song title"
             placeholderTextColor="#5E665F"
             editable={!submitting}
           />
 
-          <Text style={styles.fieldLabel}>Album (tuỳ chọn)</Text>
+          <Text style={styles.fieldLabel}>Album (optional)</Text>
           <View style={styles.albumOptionsWrap}>
             <Pressable
               style={[
@@ -272,7 +272,7 @@ function SongModal({
                   selectedAlbumId === NO_ALBUM_VALUE && styles.albumOptionTextActive,
                 ]}
               >
-                Không thuộc album
+                No album
               </Text>
             </Pressable>
             {albums.map((item) => (
@@ -300,17 +300,17 @@ function SongModal({
 
           {mode === 'create' && (
             <>
-              <Text style={styles.fieldLabel}>File nhạc * (MP3, AAC…)</Text>
+              <Text style={styles.fieldLabel}>Audio file * (MP3, AAC...)</Text>
               <Pressable style={styles.pickerBtn} onPress={pickAudio} disabled={submitting}>
                 <Ionicons name="musical-note" size={20} color={audioUri ? '#53E076' : '#667067'} />
                 <Text style={[styles.pickerText, audioUri && styles.pickerTextSelected]}>
-                  {audioName ?? 'Chọn file âm thanh'}
+                  {audioName ?? 'Choose audio file'}
                 </Text>
               </Pressable>
             </>
           )}
 
-          <Text style={styles.fieldLabel}>Ảnh bìa (tuỳ chọn)</Text>
+          <Text style={styles.fieldLabel}>Cover image (optional)</Text>
           <Pressable style={styles.pickerBtn} onPress={pickImage} disabled={submitting}>
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={styles.previewThumb} />
@@ -318,7 +318,7 @@ function SongModal({
               <Ionicons name="image-outline" size={20} color="#667067" />
             )}
             <Text style={[styles.pickerText, imageUri && styles.pickerTextSelected]}>
-              {imageUri ? 'Đã chọn ảnh' : 'Chọn ảnh bìa'}
+              {imageUri ? 'Image selected' : 'Choose cover image'}
             </Text>
           </Pressable>
 
@@ -331,7 +331,7 @@ function SongModal({
               <ActivityIndicator color="#0B0F0D" size="small" />
             ) : (
               <Text style={styles.submitBtnText}>
-                {mode === 'create' ? 'Tải lên' : 'Lưu thay đổi'}
+                {mode === 'create' ? 'Upload' : 'Save changes'}
               </Text>
             )}
           </Pressable>
@@ -359,21 +359,14 @@ export default function ArtistDashboardScreen() {
   const [albumYear, setAlbumYear] = useState(String(new Date().getFullYear()));
   const [albumGenre, setAlbumGenre] = useState('');
   const [albumCoverUri, setAlbumCoverUri] = useState<string | null>(null);
-
-  if (user?.role !== 'artist') {
-    return (
-      <SafeAreaView style={[styles.screen, styles.center]}>
-        <Ionicons name="lock-closed-outline" size={48} color="#E24B4A" />
-        <Text style={styles.noAccessTitle}>Không có quyền truy cập</Text>
-        <Text style={styles.noAccessSub}>Tính năng này chỉ dành cho Artist.</Text>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Quay lại</Text>
-        </Pressable>
-      </SafeAreaView>
-    );
-  }
+  const isArtistUser = user?.role === 'artist';
 
   const fetchProfile = useCallback(async () => {
+    if (!isArtistUser) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const token = await getToken();
@@ -382,17 +375,19 @@ export default function ArtistDashboardScreen() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message ?? 'Không thể tải dữ liệu');
+        throw new Error(err.message ?? 'Could not load data');
       }
       setProfile(await res.json());
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message ?? 'Không thể tải trang artist');
+      Alert.alert('Error', err.message ?? 'Could not load artist page');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isArtistUser]);
 
   const fetchAlbums = useCallback(async () => {
+    if (!isArtistUser) return;
+
     try {
       const token = await getToken();
       const res = await fetch(`${API_URL}/artist-dashboard/albums`, {
@@ -400,16 +395,29 @@ export default function ArtistDashboardScreen() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message ?? 'Không thể tải album');
+        throw new Error(err.message ?? 'Could not load albums');
       }
       setAlbums(await res.json());
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message ?? 'Không thể tải album');
+      Alert.alert('Error', err.message ?? 'Could not load albums');
     }
-  }, []);
+  }, [isArtistUser]);
 
-  useEffect(() => { fetchProfile(); }, []);
-  useEffect(() => { fetchAlbums(); }, []);
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
+
+  if (!isArtistUser) {
+    return (
+      <SafeAreaView style={[styles.screen, styles.center]}>
+        <Ionicons name="lock-closed-outline" size={48} color="#E24B4A" />
+        <Text style={styles.noAccessTitle}>Access denied</Text>
+        <Text style={styles.noAccessSub}>This feature is only available for artists.</Text>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>Go back</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
 
   const handleDelete = async (song: Song) => {
     try {
@@ -420,11 +428,11 @@ export default function ArtistDashboardScreen() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message ?? 'Xóa thất bại');
+        throw new Error(err.message ?? 'Delete failed');
       }
       await Promise.all([fetchProfile(), fetchAlbums()]);
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message ?? 'Không thể xóa bài hát');
+      Alert.alert('Error', err.message ?? 'Could not delete song');
     }
   };
 
@@ -437,7 +445,7 @@ export default function ArtistDashboardScreen() {
 
   const handleCreateAlbum = async () => {
     if (!albumName.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên album.');
+      Alert.alert('Missing information', 'Please enter an album name.');
       return;
     }
     setCreatingAlbum(true);
@@ -464,7 +472,7 @@ export default function ArtistDashboardScreen() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message ?? 'Không thể tạo album');
+        throw new Error(err.message ?? 'Could not create album');
       }
       setAlbumName('');
       setAlbumGenre('');
@@ -472,9 +480,9 @@ export default function ArtistDashboardScreen() {
       setAlbumCoverUri(null);
       setAlbumModalVisible(false);
       await fetchAlbums();
-      Alert.alert('Thành công', 'Đã tạo album. Giờ bạn có thể thêm bài hát vào album này.');
+      Alert.alert('Success', 'Album created. You can now add songs to this album.');
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message ?? 'Không thể tạo album');
+      Alert.alert('Error', err.message ?? 'Could not create album');
     } finally {
       setCreatingAlbum(false);
     }
@@ -512,7 +520,7 @@ export default function ArtistDashboardScreen() {
           <View style={styles.artistMeta}>
             <Text style={styles.artistName} numberOfLines={1}>{profile?.name ?? '—'}</Text>
             <Text style={styles.artistStats}>
-              {profile?.songs?.length ?? 0} bài hát
+              {profile?.songs?.length ?? 0} songs
               {profile?.followers ? `  •  ${profile.followers.toLocaleString()} followers` : ''}
             </Text>
           </View>
@@ -520,25 +528,25 @@ export default function ArtistDashboardScreen() {
         <View style={styles.artistActions}>
           <Pressable style={styles.secondaryBtn} onPress={() => setAlbumModalVisible(true)}>
             <Ionicons name="disc-outline" size={17} color="#E5E2E1" />
-            <Text style={styles.secondaryBtnText}>Tạo album</Text>
+            <Text style={styles.secondaryBtnText}>Create album</Text>
           </Pressable>
           <Pressable style={styles.addBtn} onPress={openCreate}>
             <Ionicons name="add" size={20} color="#0B0F0D" />
-            <Text style={styles.addBtnText}>Thêm bài</Text>
+            <Text style={styles.addBtnText}>Add song</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.albumsWrap}>
-        <Text style={styles.albumsTitle}>Album của bạn</Text>
+        <Text style={styles.albumsTitle}>Your albums</Text>
         {albums.length === 0 ? (
-          <Text style={styles.albumsEmpty}>Chưa có album nào. Hãy tạo album trước khi thêm bài hát.</Text>
+          <Text style={styles.albumsEmpty}>No albums yet. Create an album before adding songs.</Text>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumChips}>
             {albums.map((album) => (
               <View key={album._id} style={styles.albumChip}>
                 <Text style={styles.albumChipTitle} numberOfLines={1}>{album.name}</Text>
-                <Text style={styles.albumChipMeta}>{album.songs?.length || 0} bài hát</Text>
+                <Text style={styles.albumChipMeta}>{album.songs?.length || 0} songs</Text>
               </View>
             ))}
           </ScrollView>
@@ -557,8 +565,8 @@ export default function ArtistDashboardScreen() {
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Ionicons name="musical-notes-outline" size={48} color="#4B5563" />
-            <Text style={styles.emptyTitle}>Chưa có bài hát nào</Text>
-            <Text style={styles.emptySub}>Nhấn "+ Thêm bài" để tải lên bài đầu tiên.</Text>
+            <Text style={styles.emptyTitle}>No songs yet</Text>
+            <Text style={styles.emptySub}>Tap Add song to upload your first song.</Text>
           </View>
         }
       />
@@ -580,21 +588,21 @@ export default function ArtistDashboardScreen() {
             <Pressable onPress={() => setAlbumModalVisible(false)} hitSlop={8}>
               <Ionicons name="close" size={24} color="#E5E2E1" />
             </Pressable>
-            <Text style={styles.modalTitle}>Tạo album</Text>
+            <Text style={styles.modalTitle}>Create album</Text>
             <View style={{ width: 24 }} />
           </View>
           <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
-            <Text style={styles.fieldLabel}>Tên album *</Text>
+            <Text style={styles.fieldLabel}>Album name *</Text>
             <TextInput
               style={styles.textInput}
               value={albumName}
               onChangeText={setAlbumName}
-              placeholder="Nhập tên album"
+              placeholder="Enter album name"
               placeholderTextColor="#5E665F"
               editable={!creatingAlbum}
             />
 
-            <Text style={styles.fieldLabel}>Năm phát hành</Text>
+            <Text style={styles.fieldLabel}>Release year</Text>
             <TextInput
               style={styles.textInput}
               value={albumYear}
@@ -605,7 +613,7 @@ export default function ArtistDashboardScreen() {
               editable={!creatingAlbum}
             />
 
-            <Text style={styles.fieldLabel}>Thể loại (tuỳ chọn)</Text>
+            <Text style={styles.fieldLabel}>Genre (optional)</Text>
             <TextInput
               style={styles.textInput}
               value={albumGenre}
@@ -615,7 +623,7 @@ export default function ArtistDashboardScreen() {
               editable={!creatingAlbum}
             />
 
-            <Text style={styles.fieldLabel}>Ảnh bìa album</Text>
+            <Text style={styles.fieldLabel}>Album cover</Text>
             <Pressable
               style={styles.coverPicker}
               onPress={async () => {
@@ -636,13 +644,13 @@ export default function ArtistDashboardScreen() {
               ) : (
                 <View style={styles.coverPlaceholder}>
                   <Ionicons name="image-outline" size={24} color="#53E076" />
-                  <Text style={styles.coverPlaceholderText}>Chọn ảnh từ thiết bị</Text>
+                  <Text style={styles.coverPlaceholderText}>Choose an image from your device</Text>
                 </View>
               )}
             </Pressable>
 
             <Pressable style={[styles.submitBtn, creatingAlbum && styles.submitBtnDisabled]} onPress={handleCreateAlbum} disabled={creatingAlbum}>
-              {creatingAlbum ? <ActivityIndicator color="#0B0F0D" size="small" /> : <Text style={styles.submitBtnText}>Tạo album</Text>}
+              {creatingAlbum ? <ActivityIndicator color="#0B0F0D" size="small" /> : <Text style={styles.submitBtnText}>Create album</Text>}
             </Pressable>
           </ScrollView>
         </SafeAreaView>

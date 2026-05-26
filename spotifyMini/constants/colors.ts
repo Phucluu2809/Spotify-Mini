@@ -1,26 +1,26 @@
 /**
- * SpotifyMini – màu sắc toàn cục của ứng dụng
+ * SpotifyMini global color palette
  * Import: import { Colors, Spotify } from '@/constants/colors';
  */
 
 export const Spotify = {
-  /** Màu xanh chính – active, playing indicator */
+  /** Main green - active states and playing indicators */
   green: '#1DB954',
-  /** Xanh sáng hơn dùng cho text link, badge */
+  /** Brighter green for links and badges */
   greenLight: '#47E06F',
-  /** Xanh dùng cho icon đang phát */
+  /** Green used for currently playing icons */
   greenGlow: '#53E076',
-  /** Nền tối chính */
+  /** Main dark background */
   black: '#121212',
-  /** Nền tối hơn cho card, sheet */
+  /** Darker card and sheet background */
   darkCard: '#1C1B1B',
-  /** Nền tối nhất */
+  /** Deepest background */
   deepBlack: '#050605',
-  /** Text chính */
+  /** Primary text */
   white: '#E5E2E1',
-  /** Text phụ (subtitle, artist) */
+  /** Secondary text for subtitles and artists */
   gray: '#BCCBB9',
-  /** Text mờ (placeholder, time) */
+  /** Muted text for placeholders and time */
   muted: '#6B7280',
 } as const;
 

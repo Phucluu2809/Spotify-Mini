@@ -66,7 +66,7 @@ export const FavoriteProvider = ({ children }: { children: ReactNode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Reload để sync
+      // Reload to sync state.
       await loadFavorites();
     } catch (err) {
       console.log(err);

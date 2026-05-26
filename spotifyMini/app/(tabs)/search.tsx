@@ -233,7 +233,7 @@ export default function SearchScreen() {
       items.map<ResultItem>((item) => ({
         id: item.id,
         title: item.title,
-        subtitle: `${item.subtitle} • ${item.songs.length} bài`,
+        subtitle: `${item.subtitle} • ${item.songs.length} songs`,
         image: item.image,
         kind: item.kind,
         songs: item.songs,
@@ -340,7 +340,7 @@ export default function SearchScreen() {
             ))}
           </View>
           <Text style={styles.browseHint}>
-            Nhập từ khóa để hiển thị kết quả theo từng phân loại.
+            Enter a keyword to see results by category.
           </Text>
         </ScrollView>
       ) : (

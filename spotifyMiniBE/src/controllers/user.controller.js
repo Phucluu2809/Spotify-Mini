@@ -3,6 +3,7 @@ const Artist = require('../models/artist.model');
 const Playlist = require('../models/playlist.model');
 const Album = require('../models/album.model');
 const Song = require('../models/song.model');
+const fs = require('fs/promises');
 const cloudinary = require('../config/cloudinary');
 const { ensureSongDurations } = require('../utils/songDuration');
 
@@ -18,6 +19,38 @@ const serializeUser = (user) => ({
   followedAlbums: user.followedAlbums,
   createdAt: user.createdAt,
 });
+
+const removeLocalFile = async (filePath) => {
+  if (!filePath) return;
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error('Failed to remove temporary upload file:', err.message || err);
+    }
+  }
+};
+
+const assertCloudinaryConfigured = () => {
+  if (!process.env.CLOUD_NAME || !process.env.CLOUD_API_KEY || !process.env.CLOUD_API_SECRET) {
+    const err = new Error('Cloudinary is not configured');
+    err.statusCode = 500;
+    throw err;
+  }
+};
+
+const uploadAvatarToCloudinary = async (file) => {
+  try {
+    assertCloudinaryConfigured();
+    const result = await cloudinary.uploader.upload(file.path, {
+      resource_type: 'image',
+      folder: 'spotify-mini/avatars',
+    });
+    return result.secure_url;
+  } finally {
+    await removeLocalFile(file.path);
+  }
+};
 
 const getFollowedArtists = async (req, res) => {
   try {
@@ -62,13 +95,20 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    if (!userId) {
+      await removeLocalFile(req.file?.path);
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      await removeLocalFile(req.file?.path);
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     const nextName = req.body.name?.trim();
     if (!nextName) {
+      await removeLocalFile(req.file?.path);
       return res.status(400).json({ message: 'Name is required' });
     }
 
@@ -79,17 +119,14 @@ const updateUserProfile = async (req, res) => {
         userId: { $ne: user._id },
       });
       if (existingArtist) {
+        await removeLocalFile(req.file?.path);
         return res.status(409).json({ message: 'Name is already in use' });
       }
     }
 
     let nextAvatar = user.avatar || '';
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'image',
-        folder: 'spotify-mini/avatars',
-      });
-      nextAvatar = result.secure_url;
+      nextAvatar = await uploadAvatarToCloudinary(req.file);
     }
 
     user.name = nextName;
@@ -116,7 +153,8 @@ const updateUserProfile = async (req, res) => {
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Name is already in use' });
     }
-    res.status(500).json({ message: err.message });
+    console.error('Update profile error:', err.message || err);
+    res.status(err.statusCode || 500).json({ message: err.message });
   }
 };
 

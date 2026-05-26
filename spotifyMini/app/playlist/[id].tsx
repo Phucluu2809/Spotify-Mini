@@ -169,12 +169,12 @@ export default function PlaylistScreen() {
 
   const handleDeletePlaylist = () => {
     Alert.alert(
-      'Xóa playlist',
-      `Bạn chắc chắn muốn xóa "${playlist?.name}"?`,
+      'Delete playlist',
+      `Are you sure you want to delete "${playlist?.name}"?`,
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Xóa',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             if (!playlist?._id) return;
@@ -200,10 +200,10 @@ export default function PlaylistScreen() {
       : await followPlaylist(playlist._id);
     if (ok) {
       Alert.alert(
-        followed ? 'Đã bỏ lưu playlist' : 'Đã lưu playlist',
+        followed ? 'Playlist removed' : 'Playlist saved',
         followed
-          ? `Playlist "${playlist.name}" đã được gỡ khỏi thư viện của bạn.`
-          : `Playlist "${playlist.name}" đã được thêm vào thư viện của bạn.`
+          ? `Playlist "${playlist.name}" has been removed from your library.`
+          : `Playlist "${playlist.name}" has been added to your library.`
       );
     }
     setFollowLoading(false);
@@ -221,10 +221,10 @@ export default function PlaylistScreen() {
     if (updated) {
       setPlaylist(updated);
       Alert.alert(
-        updated.isPrivate ? 'Đã chuyển thành riêng tư' : 'Đã chuyển thành công khai',
+        updated.isPrivate ? 'Playlist is now private' : 'Playlist is now public',
         updated.isPrivate
-          ? 'Playlist này đã được ẩn khỏi tìm kiếm công khai.'
-          : 'Playlist này đã xuất hiện trong tìm kiếm công khai.'
+          ? 'This playlist is hidden from public search.'
+          : 'This playlist is visible in public search.'
       );
     }
     setVisibilityLoading(false);
@@ -250,7 +250,7 @@ export default function PlaylistScreen() {
               {playlist.isPrivate ? 'Private playlist' : 'Public playlist'}
             </Text>
           ) : null}
-          <Text style={styles.heroCount}>{playlist?.songs?.length || 0} bài hát</Text>
+          <Text style={styles.heroCount}>{playlist?.songs?.length || 0} songs</Text>
         </View>
       </ImageBackground>
 
@@ -278,7 +278,7 @@ export default function PlaylistScreen() {
                 </Pressable>
                 <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
                   <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.addBtnText}>Thêm bài</Text>
+                  <Text style={styles.addBtnText}>Add song</Text>
                 </Pressable>
               </>
             ) : (
@@ -293,7 +293,7 @@ export default function PlaylistScreen() {
                   color={followed ? '#0B0F0D' : '#E5E2E1'}
                 />
                 <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
-                  {followed ? 'Đã lưu' : 'Lưu playlist'}
+                  {followed ? 'Saved' : 'Save playlist'}
                 </Text>
               </Pressable>
             )}
@@ -314,7 +314,7 @@ export default function PlaylistScreen() {
             </Pressable>
             <Pressable style={[styles.addBtn, styles.addBtnFull]} onPress={handleOpenAddModal}>
               <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.addBtnText}>Thêm bài hát đầu tiên</Text>
+              <Text style={styles.addBtnText}>Add first song</Text>
             </Pressable>
           </View>
         ) : null}
@@ -331,7 +331,7 @@ export default function PlaylistScreen() {
               color={followed ? '#0B0F0D' : '#E5E2E1'}
             />
             <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
-              {followed ? 'Đã lưu playlist' : 'Lưu playlist'}
+              {followed ? 'Saved playlist' : 'Save playlist'}
             </Text>
           </Pressable>
         ) : null}
@@ -349,7 +349,7 @@ export default function PlaylistScreen() {
     !loading && playlist && isOwner ? (
       <Pressable style={styles.deletePlaylistBtn} onPress={handleDeletePlaylist}>
         <Ionicons name="trash-outline" size={16} color="#E24B4A" />
-        <Text style={styles.deletePlaylistText}>Xóa playlist</Text>
+        <Text style={styles.deletePlaylistText}>Delete playlist</Text>
       </Pressable>
     ) : null;
 
@@ -390,11 +390,11 @@ export default function PlaylistScreen() {
                   style={styles.removeButton}
                   onPress={() =>
                     Alert.alert(
-                      'Xóa bài hát',
-                      `Bạn muốn xóa "${item.title}" khỏi playlist?`,
+                      'Remove song',
+                      `Remove "${item.title}" from this playlist?`,
                       [
-                        { text: 'Hủy', style: 'cancel' },
-                        { text: 'Xóa', style: 'destructive', onPress: () => handleRemoveSong(item._id) },
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Remove', style: 'destructive', onPress: () => handleRemoveSong(item._id) },
                       ]
                     )
                   }
@@ -409,8 +409,8 @@ export default function PlaylistScreen() {
           !loading ? (
             <View style={styles.empty}>
               <Ionicons name="musical-notes-outline" size={44} color="#4B5563" />
-              <Text style={styles.emptyTitle}>Playlist đang trống</Text>
-              <Text style={styles.emptySubtitle}>Chưa có bài hát nào được thêm vào đây.</Text>
+              <Text style={styles.emptyTitle}>This playlist is empty</Text>
+              <Text style={styles.emptySubtitle}>No songs have been added here yet.</Text>
             </View>
           ) : null
         }
@@ -422,7 +422,7 @@ export default function PlaylistScreen() {
             <Pressable onPress={() => setShowAddModal(false)} style={styles.modalCloseBtn} hitSlop={12}>
               <Ionicons name="close" size={24} color="#E5E2E1" />
             </Pressable>
-            <Text style={styles.modalTitle}>Thêm bài hát</Text>
+            <Text style={styles.modalTitle}>Add songs</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -431,7 +431,7 @@ export default function PlaylistScreen() {
             <TextInput
               value={songSearchQuery}
               onChangeText={setSongSearchQuery}
-              placeholder="Tìm tên bài hát, nghệ sĩ, album..."
+              placeholder="Search by song, artist, or album..."
               placeholderTextColor="#6B7280"
               autoCapitalize="none"
               autoCorrect={false}
@@ -456,7 +456,7 @@ export default function PlaylistScreen() {
           ) : songSearchQuery.trim().length < 2 ? (
             <View style={styles.modalEmpty}>
               <Ionicons name="search" size={48} color="#4B5563" />
-              <Text style={styles.modalEmptyText}>Nhập ít nhất 2 ký tự để tìm bài hát</Text>
+              <Text style={styles.modalEmptyText}>Enter at least 2 characters to search songs</Text>
             </View>
           ) : (
             <FlatList
@@ -494,7 +494,7 @@ export default function PlaylistScreen() {
               ListEmptyComponent={
                 <View style={styles.modalEmpty}>
                   <Ionicons name="musical-note" size={48} color="#4B5563" />
-                  <Text style={styles.modalEmptyText}>Không tìm thấy bài hát phù hợp</Text>
+                  <Text style={styles.modalEmptyText}>No matching songs found</Text>
                 </View>
               }
             />
