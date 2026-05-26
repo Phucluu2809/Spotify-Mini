@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { API_URL } from "../config/api";
-
+import { Link, router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Pressable,
   SafeAreaView,
@@ -10,40 +11,42 @@ import {
   View
 } from "react-native";
 
-import { Link, router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../context/AuthContext";
+import { API_URL } from "../config/api";
 import { AuthNotice } from "../../components/AuthNotice";
 
-export default function LoginScreen() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function ForgotPasswordScreen() {
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
   const [notice, setNotice] = useState<{ message: string; variant: "error" | "success" | "info" } | null>(null);
-  const { login } = useAuth();
 
-  const handleLogin = async () => {
+  const handleSubmit = async () => {
+    if (!email.trim()) {
+      return setNotice({ message: "Please enter your email address", variant: "error" });
+    }
+
     try {
       setNotice(null);
       setLoading(true);
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+      const res = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() })
       });
       const data = await res.json();
-      setLoading(false);
       if (res.ok) {
-        await login({ token: data.token, user: data.user });
-        router.replace('/(tabs)/home');
+        setSent(true);
+        router.push({
+          pathname: "/(auth)/reset-password",
+          params: { email: email.trim(), sent: "1" }
+        });
       } else {
-        setNotice({ message: data.message || 'Login failed', variant: "error" });
+        setNotice({ message: data.message || "Could not send reset OTP", variant: "error" });
       }
     } catch {
+      setNotice({ message: "Network error. Please try again.", variant: "error" });
+    } finally {
       setLoading(false);
-      setNotice({ message: 'Network error. Please try again.', variant: "error" });
     }
   };
 
@@ -54,17 +57,22 @@ export default function LoginScreen() {
       style={styles.background}
     >
       <View style={styles.glowTop} />
-      <View style={styles.glowBottom} />
-
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} hitSlop={12}>
+              <Ionicons name="arrow-back" size={24} color="#47E06F" />
+            </Pressable>
+            <Text style={styles.headerTitle}>Reset password</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
           <View style={styles.hero}>
             <View style={styles.logoWrap}>
-              <Ionicons name="pulse" size={30} color="#0B0F0D" />
+              <Ionicons name="mail" size={28} color="#0B0F0D" />
             </View>
-
-            <Text style={styles.brand}>Spotify Mini</Text>
-            <Text style={styles.tagline}>The editorial soundscape</Text>
+            <Text style={styles.brand}>Forgot password?</Text>
+            <Text style={styles.tagline}>Enter your email and we will send a reset OTP.</Text>
           </View>
 
           <View style={styles.formBlock}>
@@ -84,48 +92,29 @@ export default function LoginScreen() {
               />
             </View>
 
-            <View style={styles.passwordRow}>
-              <Text style={styles.label}>Password</Text>
-              <Link href="/(auth)/forgot-password" style={styles.forgot}>
-                Forgot?
-              </Link>
-            </View>
-
-            <View style={styles.fieldWithIcon}>
-              <TextInput
-                placeholder="••••••••"
-                placeholderTextColor="#5E665F"
-                style={styles.input}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-
-              <Pressable
-                onPress={() => setShowPassword((value) => !value)}
-                hitSlop={10}
-                style={styles.eyeButton}
-              >
-                <Ionicons
-                  name={showPassword ? "eye" : "eye-off"}
-                  size={20}
-                  color="#667067"
-                />
-              </Pressable>
-            </View>
-
             <Pressable
               style={styles.primaryButton}
-              onPress={handleLogin}
+              onPress={handleSubmit}
               disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>{loading ? 'Logging in...' : 'Login to Collection'}</Text>
+              <Text style={styles.primaryButtonText}>
+                {loading ? "Sending..." : "Send reset OTP"}
+              </Text>
             </Pressable>
 
+            {sent ? (
+              <View style={styles.sentBlock}>
+                <AuthNotice message="If this email exists, a reset OTP has been sent." variant="success" />
+                <Link href="/(auth)/reset-password" style={styles.otpLink}>
+                  Enter OTP
+                </Link>
+              </View>
+            ) : null}
+
             <View style={styles.footerRow}>
-              <Text style={styles.footerText}>New to the gallery?</Text>
-              <Link href="/(auth)/register" style={styles.footerLink}>
-                Join now
+              <Text style={styles.footerText}>Remembered it?</Text>
+              <Link href="/(auth)/login" style={styles.footerLink}>
+                Log in
               </Link>
             </View>
           </View>
@@ -157,14 +146,23 @@ const styles = StyleSheet.create({
     borderRadius: 280,
     backgroundColor: "rgba(30, 185, 84, 0.12)"
   },
-  glowBottom: {
+  header: {
     position: "absolute",
-    right: -90,
-    bottom: -120,
-    width: 260,
-    height: 260,
-    borderRadius: 260,
-    backgroundColor: "rgba(30, 185, 84, 0.08)"
+    top: 18,
+    left: 22,
+    right: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  headerTitle: {
+    color: "#47E06F",
+    fontSize: 20,
+    fontWeight: "800"
+  },
+  headerSpacer: {
+    width: 24,
+    height: 24
   },
   hero: {
     alignItems: "center",
@@ -177,24 +175,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#1DB954",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
-    shadowColor: "#1DB954",
-    shadowOpacity: 0.28,
-    shadowRadius: 20,
-    elevation: 8
+    marginBottom: 18
   },
   brand: {
     color: "#47E06F",
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: "800",
     letterSpacing: -0.4
   },
   tagline: {
-    color: "#889488",
-    fontSize: 13,
+    color: "#A8B1A4",
+    fontSize: 14,
     marginTop: 8,
-    letterSpacing: 2,
-    textTransform: "uppercase"
+    textAlign: "center"
   },
   formBlock: {
     gap: 14
@@ -206,17 +199,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     textTransform: "uppercase"
   },
-  passwordRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 4
-  },
-  forgot: {
-    color: "#47E06F",
-    fontSize: 12,
-    fontWeight: "700"
-  },
   field: {
     minHeight: 54,
     borderRadius: 18,
@@ -226,25 +208,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 18
   },
-  fieldWithIcon: {
-    minHeight: 54,
-    borderRadius: 18,
-    backgroundColor: "#1A1E1B",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.03)",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingLeft: 18,
-    paddingRight: 14
-  },
   input: {
-    flex: 1,
     color: "#EAF2E8",
     fontSize: 15
-  },
-  eyeButton: {
-    paddingLeft: 12,
-    paddingVertical: 8
   },
   primaryButton: {
     minHeight: 56,
@@ -252,23 +218,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#47E06F",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 10,
-    shadowColor: "#47E06F",
-    shadowOpacity: 0.28,
-    shadowRadius: 16,
-    elevation: 6
+    marginTop: 10
   },
   primaryButtonText: {
     color: "#0B0F0D",
     fontSize: 16,
     fontWeight: "900"
   },
+  statusText: {
+    color: "#AAB4A7",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center"
+  },
+  sentBlock: {
+    alignItems: "center",
+    gap: 10
+  },
+  otpLink: {
+    color: "#47E06F",
+    fontSize: 14,
+    fontWeight: "800"
+  },
   footerRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
-    marginTop: 20
+    marginTop: 18
   },
   footerText: {
     color: "#AAB4A7",

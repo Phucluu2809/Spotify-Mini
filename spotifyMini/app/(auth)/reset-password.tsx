@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { API_URL } from "../config/api";
-
+import { useMemo, useState } from "react";
+import { Link, router, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Pressable,
   SafeAreaView,
@@ -11,47 +12,56 @@ import {
   View
 } from "react-native";
 
-import { Link, router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import { API_URL } from "../config/api";
 import { AuthNotice } from "../../components/AuthNotice";
 
-export default function RegisterScreen() {
+export default function ResetPasswordScreen() {
+  const params = useLocalSearchParams<{ email?: string; otp?: string; sent?: string }>();
+  const initialEmail = useMemo(() => {
+    return typeof params.email === "string" ? params.email : "";
+  }, [params.email]);
+  const initialOtp = useMemo(() => {
+    return typeof params.otp === "string" ? params.otp : "";
+  }, [params.otp]);
+  const [email, setEmail] = useState(initialEmail);
+  const [otp, setOtp] = useState(initialOtp);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [role, setRole] = useState<'user' | 'artist'>('user');
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; variant: "error" | "success" | "info" } | null>(null);
+  const [notice, setNotice] = useState<{ message: string; variant: "error" | "success" | "info" } | null>(
+    params.sent === "1"
+      ? { message: "OTP has been sent to your email. Enter it below to reset your password.", variant: "success" }
+      : null
+  );
 
-  const handleRegister = async () => {
-    if (!name || !email || !password) {
-      return setNotice({ message: 'Please complete all fields', variant: "error" });
-    }
-    if (password !== confirm) return setNotice({ message: 'Passwords do not match', variant: "error" });
+  const handleReset = async () => {
+    const normalizedOtp = otp.trim();
+    if (!email.trim() || !normalizedOtp) return setNotice({ message: "Email and OTP are required", variant: "error" });
+    if (!/^\d{6}$/.test(normalizedOtp)) return setNotice({ message: "OTP must be 6 digits", variant: "error" });
+    if (!password) return setNotice({ message: "Please enter a new password", variant: "error" });
+    if (password.length < 6) return setNotice({ message: "Password must be at least 6 characters", variant: "error" });
+    if (password !== confirm) return setNotice({ message: "Passwords do not match", variant: "error" });
 
     try {
       setNotice(null);
       setLoading(true);
-      const res = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role })
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), otp: normalizedOtp, password })
       });
       const data = await res.json();
-      setLoading(false);
       if (res.ok) {
-        setNotice({ message: 'Account created successfully. Redirecting to login...', variant: "success" });
-        setTimeout(() => router.replace('/(auth)/login'), 800);
+        setNotice({ message: "Password reset successfully. Redirecting to login...", variant: "success" });
+        setTimeout(() => router.replace("/(auth)/login"), 900);
       } else {
-        setNotice({ message: data.message || 'Registration failed', variant: "error" });
+        setNotice({ message: data.message || "Could not reset password", variant: "error" });
       }
     } catch {
+      setNotice({ message: "Network error. Please try again.", variant: "error" });
+    } finally {
       setLoading(false);
-      setNotice({ message: 'Network error. Please try again.', variant: "error" });
     }
   };
 
@@ -61,9 +71,7 @@ export default function RegisterScreen() {
       locations={[0, 0.55, 1]}
       style={styles.background}
     >
-      <View style={styles.glowLeft} />
-      <View style={styles.glowRight} />
-
+      <View style={styles.glowTop} />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -75,37 +83,25 @@ export default function RegisterScreen() {
               <Pressable onPress={() => router.back()} hitSlop={12}>
                 <Ionicons name="arrow-back" size={24} color="#47E06F" />
               </Pressable>
-              <Text style={styles.headerTitle}>Create account</Text>
+              <Text style={styles.headerTitle}>New password</Text>
               <View style={styles.headerSpacer} />
             </View>
 
             <View style={styles.hero}>
               <View style={styles.logoWrap}>
-                <Ionicons name="pulse" size={30} color="#0B0F0D" />
+                <Ionicons name="key" size={28} color="#0B0F0D" />
               </View>
-
-              <Text style={styles.brand}>Spotify Mini</Text>
-              <Text style={styles.tagline}>Your high-fidelity editorial retreat.</Text>
+              <Text style={styles.brand}>Create new password</Text>
+              <Text style={styles.tagline}>Use at least 6 characters.</Text>
             </View>
 
             <View style={styles.formBlock}>
               {notice ? <AuthNotice message={notice.message} variant={notice.variant} /> : null}
 
-              <Text style={styles.label}>Full name</Text>
-              <View style={styles.field}>
-                <TextInput
-                  placeholder="Alex Rivera"
-                  placeholderTextColor="#5E665F"
-                  style={styles.input}
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-
               <Text style={styles.label}>Email address</Text>
               <View style={styles.field}>
                 <TextInput
-                  placeholder="alex@sanctuary.com"
+                  placeholder="alex@sonicgallery.com"
                   placeholderTextColor="#5E665F"
                   style={styles.input}
                   keyboardType="email-address"
@@ -116,34 +112,31 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              <Text style={styles.label}>Account type</Text>
-              <View style={styles.roleRow}>
-                <Pressable
-                  onPress={() => setRole('user')}
-                  style={[styles.roleChip, role === 'user' && styles.roleChipActive]}
-                >
-                  <Text style={[styles.roleChipText, role === 'user' && styles.roleChipTextActive]}>User</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setRole('artist')}
-                  style={[styles.roleChip, role === 'artist' && styles.roleChipActive]}
-                >
-                  <Text style={[styles.roleChipText, role === 'artist' && styles.roleChipTextActive]}>Artist</Text>
-                </Pressable>
+              <Text style={styles.label}>OTP</Text>
+              <View style={styles.field}>
+                <TextInput
+                  placeholder="6-digit OTP"
+                  placeholderTextColor="#5E665F"
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={6}
+                  value={otp}
+                  onChangeText={(value) => setOtp(value.replace(/\D/g, ""))}
+                />
               </View>
 
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>New password</Text>
               <View style={styles.fieldWithIcon}>
                 <TextInput
-                  placeholder="••••••••••••"
+                  placeholder="New password"
                   placeholderTextColor="#5E665F"
                   style={styles.input}
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
                 />
-
                 <Pressable
                   onPress={() => setShowPassword((value) => !value)}
                   hitSlop={10}
@@ -158,40 +151,29 @@ export default function RegisterScreen() {
               </View>
 
               <Text style={styles.label}>Confirm password</Text>
-              <View style={styles.fieldWithIcon}>
+              <View style={styles.field}>
                 <TextInput
-                  placeholder="••••••••••••"
+                  placeholder="Confirm password"
                   placeholderTextColor="#5E665F"
                   style={styles.input}
-                  secureTextEntry={!showConfirm}
+                  secureTextEntry={!showPassword}
                   value={confirm}
                   onChangeText={setConfirm}
                 />
-
-                <Pressable
-                  onPress={() => setShowConfirm((value) => !value)}
-                  hitSlop={10}
-                  style={styles.eyeButton}
-                >
-                  <Ionicons
-                    name={showConfirm ? "eye" : "eye-off"}
-                    size={20}
-                    color="#667067"
-                  />
-                </Pressable>
               </View>
 
               <Pressable
                 style={styles.primaryButton}
-                onPress={handleRegister}
+                onPress={handleReset}
                 disabled={loading}
               >
-                <Text style={styles.primaryButtonText}>{loading ? 'Creating...' : 'Create account'}</Text>
-                <Ionicons name="arrow-forward" size={18} color="#0B0F0D" />
+                <Text style={styles.primaryButtonText}>
+                  {loading ? "Saving..." : "Reset password"}
+                </Text>
               </Pressable>
 
               <View style={styles.footerRow}>
-                <Text style={styles.footerText}>Already have an account?</Text>
+                <Text style={styles.footerText}>Back to</Text>
                 <Link href="/(auth)/login" style={styles.footerLink}>
                   Log in
                 </Link>
@@ -214,29 +196,20 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingVertical: 18,
+    paddingVertical: 18
   },
   container: {
     flex: 1,
     paddingHorizontal: 22,
-    justifyContent: "flex-start"
+    justifyContent: "center"
   },
-  glowLeft: {
+  glowTop: {
     position: "absolute",
-    top: 50,
-    left: -110,
-    width: 320,
-    height: 320,
-    borderRadius: 320,
-    backgroundColor: "rgba(30, 185, 84, 0.10)"
-  },
-  glowRight: {
-    position: "absolute",
-    bottom: -140,
-    right: -120,
-    width: 320,
-    height: 320,
-    borderRadius: 320,
+    top: -120,
+    left: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 280,
     backgroundColor: "rgba(30, 185, 84, 0.12)"
   },
   header: {
@@ -256,8 +229,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: "center",
-    marginBottom: 30,
-    marginTop: 4
+    marginBottom: 36
   },
   logoWrap: {
     width: 74,
@@ -266,60 +238,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#1DB954",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
-    shadowColor: "#1DB954",
-    shadowOpacity: 0.28,
-    shadowRadius: 20,
-    elevation: 8
+    marginBottom: 18
   },
   brand: {
     color: "#47E06F",
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
-    letterSpacing: -0.4
+    letterSpacing: -0.4,
+    textAlign: "center"
   },
   tagline: {
     color: "#A8B1A4",
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 8,
     textAlign: "center"
   },
   formBlock: {
-    gap: 12
-  },
-  roleRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  roleChip: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: '#1A1E1B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleChipActive: {
-    borderColor: '#47E06F',
-    backgroundColor: 'rgba(71, 224, 111, 0.12)',
-  },
-  roleChipText: {
-    color: '#AAB4A7',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  roleChipTextActive: {
-    color: '#47E06F',
+    gap: 14
   },
   label: {
     color: "#C3CBBF",
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 1.6,
-    textTransform: "uppercase",
-    marginTop: 2
+    textTransform: "uppercase"
   },
   field: {
     minHeight: 54,
@@ -353,16 +295,10 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 56,
     borderRadius: 20,
-    marginTop: 10,
     backgroundColor: "#47E06F",
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    shadowColor: "#47E06F",
-    shadowOpacity: 0.28,
-    shadowRadius: 16,
-    elevation: 6
+    marginTop: 10
   },
   primaryButtonText: {
     color: "#0B0F0D",
