@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 
 import { usePlayer, type Song } from "../../context/PlayerContext";
 import { usePlaylist } from "../../context/PlaylistContext";
+import { useAlbum } from "../../context/AlbumContext";
 import { API } from "../../services/api";
 import { getDefaultCoverUrl } from "../../services/media";
 
@@ -49,14 +50,6 @@ type PlaylistItem = {
   songs?: Song[];
 };
 
-type AlbumItem = {
-  _id: string;
-  name: string;
-  artist: string;
-  cover?: string;
-  songs?: Song[];
-};
-
 const searchCategories: Array<{
   key: Exclude<SearchFilter, "all">;
   label: string;
@@ -73,12 +66,12 @@ const normalize = (value?: string) => (value || "").trim().toLowerCase();
 
 export default function SearchScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
-  const [albums, setAlbums] = useState<AlbumItem[]>([]);
   const [publicPlaylists, setPublicPlaylists] = useState<PlaylistItem[]>([]);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<SearchFilter>("all");
   const { playSong, currentSong } = usePlayer();
   const { playlists, followedPlaylists } = usePlaylist();
+  const { albums } = useAlbum();
   const router = useRouter();
 
   useEffect(() => {
@@ -92,20 +85,6 @@ export default function SearchScreen() {
     };
 
     fetchSongs();
-  }, []);
-
-  useEffect(() => {
-    const fetchAlbums = async () => {
-      try {
-        const res = await API.get("/albums");
-        setAlbums(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.log(err);
-        setAlbums([]);
-      }
-    };
-
-    fetchAlbums();
   }, []);
 
   useEffect(() => {

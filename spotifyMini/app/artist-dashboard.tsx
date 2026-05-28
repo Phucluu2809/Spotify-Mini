@@ -15,10 +15,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
+import { useAlbum } from '../context/AlbumContext';
 import { API_URL } from './config/api';
 import { getDefaultCoverUrl, uploadImageFromUri } from '../services/media';
 
@@ -346,6 +348,7 @@ function SongModal({
 export default function ArtistDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { getAlbums } = useAlbum();
 
   const [profile, setProfile] = useState<ArtistProfile | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -405,6 +408,12 @@ export default function ArtistDashboardScreen() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
   useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
+  useFocusEffect(
+    useCallback(() => {
+      void fetchProfile();
+      void fetchAlbums();
+    }, [fetchProfile, fetchAlbums])
+  );
 
   if (!isArtistUser) {
     return (
@@ -430,7 +439,7 @@ export default function ArtistDashboardScreen() {
         const err = await res.json();
         throw new Error(err.message ?? 'Delete failed');
       }
-      await Promise.all([fetchProfile(), fetchAlbums()]);
+      await Promise.all([fetchProfile(), fetchAlbums(), getAlbums()]);
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Could not delete song');
     }
@@ -479,7 +488,7 @@ export default function ArtistDashboardScreen() {
       setAlbumYear(String(new Date().getFullYear()));
       setAlbumCoverUri(null);
       setAlbumModalVisible(false);
-      await fetchAlbums();
+      await Promise.all([fetchAlbums(), getAlbums()]);
       Alert.alert('Success', 'Album created. You can now add songs to this album.');
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Could not create album');
@@ -544,10 +553,17 @@ export default function ArtistDashboardScreen() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumChips}>
             {albums.map((album) => (
-              <View key={album._id} style={styles.albumChip}>
-                <Text style={styles.albumChipTitle} numberOfLines={1}>{album.name}</Text>
+              <Pressable
+                key={album._id}
+                style={styles.albumChip}
+                onPress={() => router.push(`/(tabs)/album/${album._id}` as any)}
+              >
+                <View style={styles.albumChipHeader}>
+                  <Text style={styles.albumChipTitle} numberOfLines={1}>{album.name}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#BCCBB9" />
+                </View>
                 <Text style={styles.albumChipMeta}>{album.songs?.length || 0} songs</Text>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
         )}
@@ -578,7 +594,7 @@ export default function ArtistDashboardScreen() {
         albums={albums}
         onClose={() => setModalVisible(false)}
         onSuccess={async () => {
-          await Promise.all([fetchProfile(), fetchAlbums()]);
+          await Promise.all([fetchProfile(), fetchAlbums(), getAlbums()]);
         }}
       />
 
@@ -730,7 +746,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
   },
-  albumChipTitle: { color: '#E5E2E1', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  albumChipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  albumChipTitle: { color: '#E5E2E1', fontSize: 14, fontWeight: '700', flex: 1 },
   albumChipMeta: { color: '#BCCBB9', fontSize: 12 },
 
   listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
