@@ -83,6 +83,83 @@ router.post('/albums', requireAuth, async (req, res) => {
   }
 });
 
+// PUT /artist-dashboard/albums/:albumId
+router.put('/albums/:albumId', requireAuth, async (req, res) => {
+  try {
+    const artist = await getArtistForUser(req.user.id, res);
+    if (!artist) return;
+
+    const { albumId } = req.params;
+    const album = await Album.findById(albumId);
+    if (!album) return res.status(404).json({ message: 'Album not found' });
+
+    if (album.artistId?.toString() !== artist._id.toString()) {
+      return res.status(403).json({ message: 'You can only edit your own albums' });
+    }
+
+    const { name, cover } = req.body;
+    const nextName = typeof name === 'string' ? name.trim() : '';
+    const previousName = album.name;
+
+    if (!nextName) {
+      return res.status(400).json({ message: 'Album name is required' });
+    }
+
+    const existing = await Album.findOne({
+      _id: { $ne: album._id },
+      artistId: artist._id,
+      name: { $regex: `^${nextName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+    });
+    if (existing) {
+      return res.status(400).json({ message: 'Album already exists for this artist' });
+    }
+
+    album.name = nextName;
+    if (cover !== undefined) album.cover = cover || '';
+    await album.save();
+
+    if (previousName !== nextName) {
+      await Song.updateMany(
+        { _id: { $in: album.songs }, artistId: artist._id },
+        { $set: { album: nextName } }
+      );
+    }
+
+    await album.populate('songs');
+    res.json(album);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /artist-dashboard/albums/:albumId
+router.delete('/albums/:albumId', requireAuth, async (req, res) => {
+  try {
+    const artist = await getArtistForUser(req.user.id, res);
+    if (!artist) return;
+
+    const { albumId } = req.params;
+    const album = await Album.findById(albumId);
+    if (!album) return res.status(404).json({ message: 'Album not found' });
+
+    if (album.artistId?.toString() !== artist._id.toString()) {
+      return res.status(403).json({ message: 'You can only delete your own albums' });
+    }
+
+    await Song.updateMany(
+      { _id: { $in: album.songs }, artistId: artist._id },
+      { $set: { album: '' } }
+    );
+    await Album.findByIdAndDelete(albumId);
+
+    res.json({ message: 'Album deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /artist-dashboard/songs
 router.post(
   '/songs',

@@ -183,11 +183,20 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const updatePlaylist = useCallback(
-    async (id: string, name: string, description = "", isPrivate = false, cover = "") => {
+    async (id: string, name: string, description = "", isPrivate = false, cover?: string) => {
       try {
         if (!token) {
           setError("No authentication token");
           return null;
+        }
+        const body: {
+          name: string;
+          description: string;
+          isPrivate: boolean;
+          cover?: string;
+        } = { name, description, isPrivate };
+        if (cover !== undefined) {
+          body.cover = cover;
         }
         const res = await fetch(`${API_URL}/playlists/${id}`, {
           method: "PUT",
@@ -195,7 +204,7 @@ export const PlaylistProvider = ({ children }: { children: ReactNode }) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ name, description, isPrivate, cover }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error(`Failed to update playlist: ${res.status}`);
         const updated = await res.json();

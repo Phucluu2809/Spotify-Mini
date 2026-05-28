@@ -14,11 +14,13 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { usePlayer } from '../../context/PlayerContext';
 import { usePlaylist } from '../../context/PlaylistContext';
 import { useAuth } from '../../context/AuthContext';
 import { API } from '../../services/api';
+import { uploadImageFromUri } from '../../services/media';
 
 type Song = {
   _id: string;
@@ -46,11 +48,6 @@ const formatDuration = (duration: number) => {
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
 };
 
-const getRandomAccentColor = () => {
-  const colors = ['#164C2E', '#2C7A46', '#0F766E', '#7C3AED', '#1E3A8A'];
-  return colors[Math.floor(Math.random() * colors.length)];
-};
-
 export default function PlaylistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -68,13 +65,17 @@ export default function PlaylistScreen() {
   } = usePlaylist();
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accentColor] = useState(getRandomAccentColor());
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
   const [loadingModal, setLoadingModal] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
   const [followLoading, setFollowLoading] = useState(false);
-  const [visibilityLoading, setVisibilityLoading] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIsPrivate, setEditIsPrivate] = useState(false);
+  const [editCoverUri, setEditCoverUri] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   const handlePlayPlaylist = () => {
     if (!playlist?.songs?.length) return;
@@ -191,6 +192,13 @@ export default function PlaylistScreen() {
   const isOwner = Boolean(user?.id && playlist?.userId && user.id === playlist.userId);
   const followed = Boolean(playlist?._id && isPlaylistFollowed(playlist._id));
   const isPlaylistActive = Boolean(currentSong && playlist?.songs?.some((song) => song._id === currentSong._id));
+  const coverUri = useMemo(
+    () => playlist?.cover || `https://picsum.photos/seed/${playlist?._id || 'playlist'}/400/400`,
+    [playlist?._id, playlist?.cover]
+  );
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
 
   const handleFollowToggle = async () => {
     if (!playlist?._id || isOwner) return;
@@ -209,119 +217,122 @@ export default function PlaylistScreen() {
     setFollowLoading(false);
   };
 
-  const handleToggleVisibility = async () => {
-    if (!playlist || !isOwner) return;
-    setVisibilityLoading(true);
-    const updated = await updatePlaylist(
-      playlist._id,
-      playlist.name,
-      playlist.description || "",
-      !playlist.isPrivate
-    );
-    if (updated) {
-      setPlaylist(updated);
-      Alert.alert(
-        updated.isPrivate ? 'Playlist is now private' : 'Playlist is now public',
-        updated.isPrivate
-          ? 'This playlist is hidden from public search.'
-          : 'This playlist is visible in public search.'
-      );
-    }
-    setVisibilityLoading(false);
+  const openEditPlaylist = () => {
+    if (!playlist) return;
+    setEditName(playlist.name);
+    setEditDescription(playlist.description || '');
+    setEditIsPrivate(Boolean(playlist.isPrivate));
+    setEditCoverUri(null);
+    setShowEditModal(true);
   };
 
-  const ListHeader = () => (
+  const pickCover = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets?.[0]) {
+      setEditCoverUri(result.assets[0].uri);
+    }
+  };
+
+  const handleSavePlaylist = async () => {
+    if (!playlist?._id || !isOwner) return;
+    if (!editName.trim()) {
+      Alert.alert('Missing information', 'Please enter a playlist name.');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const cover = editCoverUri
+        ? await uploadImageFromUri(
+            editCoverUri,
+            `playlist-cover-${editName.trim().toLowerCase().replace(/\s+/g, '-')}.jpg`
+          )
+        : playlist.cover;
+
+      const updated = await updatePlaylist(
+        playlist._id,
+        editName.trim(),
+        editDescription.trim(),
+        editIsPrivate,
+        cover
+      );
+
+      if (updated) {
+        setPlaylist(updated);
+        setShowEditModal(false);
+        setEditCoverUri(null);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Could not update playlist');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const listHeader = (
     <>
       <ImageBackground
-        source={{ uri: playlist?.cover || `https://picsum.photos/seed/${playlist?._id}/400/400` }}
-        style={[styles.hero, { backgroundColor: accentColor }]}
+        source={{ uri: coverUri }}
+        style={styles.hero}
       >
         <View style={styles.heroOverlay} />
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={handleBack} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </Pressable>
         <View style={styles.heroText}>
+          <Text style={styles.heroLabel}>PLAYLIST</Text>
           <Text style={styles.heroTitle}>{playlist?.name || 'Playlist'}</Text>
           {playlist?.description ? (
             <Text style={styles.heroSubtitle}>{playlist.description}</Text>
-          ) : null}
-          {playlist ? (
-            <Text style={styles.heroPrivacy}>
-              {playlist.isPrivate ? 'Private playlist' : 'Public playlist'}
+          ) : (
+            <Text style={styles.heroSubtitle}>
+              {playlist?.isPrivate ? 'Private playlist' : 'Public playlist'}
             </Text>
-          ) : null}
-          <Text style={styles.heroCount}>{playlist?.songs?.length || 0} songs</Text>
+          )}
+          <Text style={styles.heroCount}>
+            {playlist?.isPrivate ? 'Private playlist' : 'Public playlist'} • {playlist?.songs?.length || 0} songs
+          </Text>
         </View>
       </ImageBackground>
 
       <View style={styles.actionRow}>
         {(playlist?.songs?.length || 0) > 0 ? (
-          <>
-            <Pressable
-              style={styles.playCircle}
-              onPress={handlePlayPlaylist}
-            >
-              <Ionicons name={isPlaylistActive && isPlaying ? 'pause' : 'play'} size={22} color="#0B0F0D" />
-            </Pressable>
-
-            {isOwner ? (
-              <>
-                <Pressable style={styles.visibilityBtn} onPress={handleToggleVisibility} disabled={visibilityLoading}>
-                  {visibilityLoading ? (
-                    <ActivityIndicator size="small" color="#E5E2E1" />
-                  ) : (
-                    <>
-                      <Ionicons name={playlist?.isPrivate ? 'lock-closed' : 'earth'} size={16} color="#E5E2E1" />
-                      <Text style={styles.visibilityBtnText}>{playlist?.isPrivate ? 'Private' : 'Public'}</Text>
-                    </>
-                  )}
-                </Pressable>
-                <Pressable style={styles.addBtn} onPress={handleOpenAddModal}>
-                  <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.addBtnText}>Add song</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                style={[styles.followBtn, followed && styles.followBtnActive]}
-                onPress={handleFollowToggle}
-                disabled={followLoading}
-              >
-                <Ionicons
-                  name={followed ? 'checkmark' : 'add'}
-                  size={18}
-                  color={followed ? '#0B0F0D' : '#E5E2E1'}
-                />
-                <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
-                  {followed ? 'Saved' : 'Save playlist'}
-                </Text>
-              </Pressable>
-            )}
-          </>
-        ) : null}
-
-        {(playlist?.songs?.length || 0) === 0 && !loading && isOwner ? (
-          <View style={styles.ownerEmptyActions}>
-            <Pressable style={styles.visibilityBtn} onPress={handleToggleVisibility} disabled={visibilityLoading}>
-              {visibilityLoading ? (
-                <ActivityIndicator size="small" color="#E5E2E1" />
-              ) : (
-                <>
-                  <Ionicons name={playlist?.isPrivate ? 'lock-closed' : 'earth'} size={16} color="#E5E2E1" />
-                  <Text style={styles.visibilityBtnText}>{playlist?.isPrivate ? 'Private' : 'Public'}</Text>
-                </>
-              )}
-            </Pressable>
-            <Pressable style={[styles.addBtn, styles.addBtnFull]} onPress={handleOpenAddModal}>
-              <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.addBtnText}>Add first song</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {(playlist?.songs?.length || 0) === 0 && !loading && !isOwner ? (
           <Pressable
-            style={[styles.followBtn, styles.followBtnFull, followed && styles.followBtnActive]}
+            style={styles.playCircle}
+            onPress={handlePlayPlaylist}
+          >
+            <Ionicons name={isPlaylistActive && isPlaying ? 'pause' : 'play'} size={22} color="#0B0F0D" />
+          </Pressable>
+        ) : null}
+
+        {isOwner ? (
+          <>
+            <Pressable style={styles.editPlaylistBtn} onPress={openEditPlaylist}>
+              <Ionicons name="create-outline" size={18} color="#E5E2E1" />
+              <Text style={styles.editPlaylistText}>Edit playlist</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.deletePlaylistBtn,
+                (playlist?.songs?.length || 0) > 0 && styles.deletePlaylistBtnCompact,
+              ]}
+              onPress={handleDeletePlaylist}
+            >
+              <Ionicons name="trash-outline" size={18} color="#E24B4A" />
+              {(playlist?.songs?.length || 0) === 0 ? (
+                <Text style={styles.deletePlaylistText}>Delete</Text>
+              ) : null}
+            </Pressable>
+          </>
+        ) : (
+          <Pressable
+            style={[styles.followBtn, followed && styles.followBtnActive]}
             onPress={handleFollowToggle}
             disabled={followLoading}
           >
@@ -331,11 +342,20 @@ export default function PlaylistScreen() {
               color={followed ? '#0B0F0D' : '#E5E2E1'}
             />
             <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>
-              {followed ? 'Saved playlist' : 'Save playlist'}
+              {followed ? 'Saved' : 'Save playlist'}
             </Text>
           </Pressable>
-        ) : null}
+        )}
       </View>
+
+      {isOwner && !loading && playlist ? (
+        <View style={styles.ownerSecondaryRow}>
+          <Pressable style={styles.addSongBtn} onPress={handleOpenAddModal}>
+            <Ionicons name="add" size={18} color="#E5E2E1" />
+            <Text style={styles.addSongText}>{(playlist?.songs?.length || 0) > 0 ? 'Add song' : 'Add first song'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.loadingWrap}>
@@ -345,14 +365,6 @@ export default function PlaylistScreen() {
     </>
   );
 
-  const ListFooter = () =>
-    !loading && playlist && isOwner ? (
-      <Pressable style={styles.deletePlaylistBtn} onPress={handleDeletePlaylist}>
-        <Ionicons name="trash-outline" size={16} color="#E24B4A" />
-        <Text style={styles.deletePlaylistText}>Delete playlist</Text>
-      </Pressable>
-    ) : null;
-
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <FlatList
@@ -360,8 +372,7 @@ export default function PlaylistScreen() {
         keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
+        ListHeaderComponent={listHeader}
         renderItem={({ item, index }) => {
           const isActive = currentSong?._id === item._id;
           return (
@@ -501,6 +512,85 @@ export default function PlaylistScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      <Modal visible={showEditModal && isOwner} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowEditModal(false)}>
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={() => setShowEditModal(false)} style={styles.modalCloseBtn} hitSlop={12} disabled={editLoading}>
+              <Ionicons name="close" size={24} color="#E5E2E1" />
+            </Pressable>
+            <Text style={styles.modalTitle}>Edit playlist</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <View style={styles.editBody}>
+            <Text style={styles.fieldLabel}>Playlist name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Enter playlist name"
+              placeholderTextColor="#6B7280"
+              editable={!editLoading}
+            />
+
+            <Text style={styles.fieldLabel}>Description</Text>
+            <TextInput
+              style={[styles.textInput, styles.descriptionInput]}
+              value={editDescription}
+              onChangeText={setEditDescription}
+              placeholder="Add a description"
+              placeholderTextColor="#6B7280"
+              editable={!editLoading}
+              multiline
+            />
+
+            <Text style={styles.fieldLabel}>Visibility</Text>
+            <View style={styles.visibilityChoices}>
+              <Pressable
+                style={[styles.visibilityChoice, !editIsPrivate && styles.visibilityChoiceActive]}
+                onPress={() => setEditIsPrivate(false)}
+                disabled={editLoading}
+              >
+                <Ionicons name="earth" size={17} color={!editIsPrivate ? '#0B0F0D' : '#E5E2E1'} />
+                <Text style={[styles.visibilityChoiceText, !editIsPrivate && styles.visibilityChoiceTextActive]}>Public</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.visibilityChoice, editIsPrivate && styles.visibilityChoiceActive]}
+                onPress={() => setEditIsPrivate(true)}
+                disabled={editLoading}
+              >
+                <Ionicons name="lock-closed" size={17} color={editIsPrivate ? '#0B0F0D' : '#E5E2E1'} />
+                <Text style={[styles.visibilityChoiceText, editIsPrivate && styles.visibilityChoiceTextActive]}>Private</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.fieldLabel}>Cover image</Text>
+            <Pressable style={styles.coverPicker} onPress={pickCover} disabled={editLoading}>
+              {editCoverUri || playlist?.cover ? (
+                <Image source={{ uri: editCoverUri || playlist?.cover }} style={styles.coverPreview} />
+              ) : (
+                <View style={styles.coverPlaceholder}>
+                  <Ionicons name="image-outline" size={24} color="#53E076" />
+                  <Text style={styles.coverPlaceholderText}>Choose cover image</Text>
+                </View>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={[styles.saveBtn, editLoading && styles.saveBtnDisabled]}
+              onPress={handleSavePlaylist}
+              disabled={editLoading}
+            >
+              {editLoading ? (
+                <ActivityIndicator size="small" color="#0B0F0D" />
+              ) : (
+                <Text style={styles.saveBtnText}>Save changes</Text>
+              )}
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -517,9 +607,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', zIndex: 1,
   },
   heroText: { zIndex: 1 },
-  heroTitle: { color: '#fff', fontSize: 32, fontWeight: '900', fontStyle: 'italic', marginBottom: 6 },
+  heroLabel: { color: '#53E076', fontSize: 11, fontWeight: '800', letterSpacing: 1.6, marginBottom: 4 },
+  heroTitle: { color: '#fff', fontSize: 32, fontWeight: '900', marginBottom: 6 },
   heroSubtitle: { color: 'rgba(255,255,255,0.75)', fontSize: 14, marginBottom: 4 },
-  heroPrivacy: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase' },
   heroCount: { color: 'rgba(255,255,255,0.55)', fontSize: 13 },
 
   actionRow: {
@@ -539,7 +629,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingLeft: 3,
   },
-  addBtn: {
+  editPlaylistBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.24)',
+  },
+  editPlaylistText: { color: '#E5E2E1', fontSize: 15, fontWeight: '700' },
+  addSongBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -549,24 +652,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     backgroundColor: '#7C3AED',
   },
-  addBtnFull: { marginTop: 8 },
-  ownerEmptyActions: { flex: 1, gap: 8 },
-  followBtnFull: { marginTop: 8 },
-  addBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  visibilityBtn: {
-    minWidth: 120,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 1.5,
-    borderColor: '#4B5563',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 16,
-  },
-  visibilityBtnText: { color: '#E5E2E1', fontSize: 14, fontWeight: '700' },
+  addSongText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   followBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -585,6 +671,12 @@ const styles = StyleSheet.create({
   },
   followBtnText: { color: '#E5E2E1', fontSize: 15, fontWeight: '700' },
   followBtnTextActive: { color: '#0B0F0D' },
+
+  ownerSecondaryRow: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
 
   loadingWrap: { paddingTop: 40, alignItems: 'center' },
 
@@ -619,20 +711,22 @@ const styles = StyleSheet.create({
   emptySubtitle: { color: '#6B7280', fontSize: 14, textAlign: 'center', paddingHorizontal: 30 },
 
   deletePlaylistBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 32,
-    marginHorizontal: 24,
-    marginBottom: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(226,75,74,0.35)',
-    backgroundColor: 'rgba(226,75,74,0.07)',
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: '#E24B4A',
+    backgroundColor: 'rgba(226,75,74,0.08)',
   },
-  deletePlaylistText: { color: '#E24B4A', fontSize: 15, fontWeight: '600' },
+  deletePlaylistBtnCompact: {
+    flex: 0,
+    width: 46,
+  },
+  deletePlaylistText: { color: '#E24B4A', fontSize: 15, fontWeight: '700' },
 
   modalContainer: { flex: 1, backgroundColor: '#0E1012' },
   modalHeader: {
@@ -652,6 +746,84 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalTitle: { color: '#E5E2E1', fontSize: 17, fontWeight: '700' },
+  editBody: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 60, gap: 6 },
+  fieldLabel: {
+    color: '#C3CBBF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  textInput: {
+    minHeight: 52,
+    borderRadius: 14,
+    backgroundColor: '#1A1E1B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 16,
+    color: '#E5E2E1',
+    fontSize: 15,
+  },
+  descriptionInput: {
+    minHeight: 96,
+    paddingTop: 14,
+    textAlignVertical: 'top',
+  },
+  visibilityChoices: { flexDirection: 'row', gap: 10 },
+  visibilityChoice: {
+    flex: 1,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  visibilityChoiceActive: {
+    borderColor: '#53E076',
+    backgroundColor: '#53E076',
+  },
+  visibilityChoiceText: { color: '#E5E2E1', fontSize: 14, fontWeight: '700' },
+  visibilityChoiceTextActive: { color: '#0B0F0D' },
+  coverPicker: {
+    width: '100%',
+    height: 220,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#1A1E1B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  coverPreview: { width: '100%', height: '100%' },
+  coverPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(83,224,118,0.3)',
+    borderRadius: 14,
+    margin: 12,
+  },
+  coverPlaceholderText: { color: '#BCCBB9', fontSize: 12, fontWeight: '700' },
+  saveBtn: {
+    marginTop: 28,
+    minHeight: 56,
+    borderRadius: 20,
+    backgroundColor: '#53E076',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnDisabled: { opacity: 0.55 },
+  saveBtnText: { color: '#0B0F0D', fontSize: 16, fontWeight: '900' },
   modalSearchWrap: {
     height: 46,
     marginHorizontal: 16,
